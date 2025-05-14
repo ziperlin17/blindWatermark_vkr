@@ -1,0 +1,1241 @@
+[2025-05-14 19:36:10,720] I MainThread - <module>:231 - --- Запуск Скрипта Встраивания (PyTorch Wavelets) ---
+[2025-05-14 19:36:10,720] I MainThread - <module>:232 - PyTorch Wavelets Доступно: True
+[2025-05-14 19:36:10,721] I MainThread - <module>:233 - Torch DCT Доступно: True
+[2025-05-14 19:36:10,721] I MainThread - <module>:234 - Метод выбора колец: pool_entropy_selection, Pool: 4, Select: 2
+[2025-05-14 19:36:10,721] I MainThread - <module>:235 - Payload: 64bit, ECC for 1st: True (Galois BCH m=8, t=9)
+[2025-05-14 19:36:10,721] I MainThread - <module>:236 - Альфа: MIN=1.13, MAX=1.28, N_RINGS_Total=8
+[2025-05-14 19:36:10,721] I MainThread - <module>:237 - Маскировка: True (Lambda=0.05), Компонент: Cb
+[2025-05-14 19:36:10,721] I MainThread - <module>:239 - Выход: Кодек=mp4v, Расширение=.mp4
+[2025-05-14 19:36:10,721] I MainThread - <module>:240 - Параллелизм: ThreadPoolExecutor (max_workers=8) с батчингом.
+[2025-05-14 19:36:10,721] W MainThread - <module>:245 - Используется кодек с потерями 'mp4v'.
+[2025-05-14 19:36:10,722] I MainThread - main:2691 - --- Запуск Основного Процесса Встраивания (Smart Stitch) ---
+[2025-05-14 19:36:10,881] I MainThread - main:2708 - Используется CUDA: NVIDIA GeForce GTX 1650 Ti
+[2025-05-14 19:36:10,896] I MainThread - main:2722 - Экземпляры DTCWTForward и DTCWTInverse успешно созданы и перемещены на устройство.
+[2025-05-14 19:36:10,898] I MainThread - main:2739 - Входное видео: 'f1720.mp4'
+[2025-05-14 19:36:10,898] I MainThread - main:2740 - Базовое имя выходного файла: 'watermarked_ffmpeg_t9'
+[2025-05-14 19:36:10,898] I MainThread - main:2743 - Чтение метаданных для 'f1720.mp4'...
+[2025-05-14 19:36:10,898] I MainThread - get_input_metadata:940 - Attempting to open 'f1720.mp4' with PyAV to read metadata...
+[2025-05-14 19:36:10,913] I MainThread - get_input_metadata:945 - Opened with PyAV successfully.
+[2025-05-14 19:36:10,913] E MainThread - get_input_metadata:1040 - Ошибка при доступе к свойствам видеопотока: Invalid format specifier
+[2025-05-14 19:36:10,913] I MainThread - get_input_metadata:1080 -   PyAV Audio Stream Meta: Codec=aac, Rate=44100, Layout=stereo, Bitrate=127999, Index=1
+[2025-05-14 19:36:10,926] I MainThread - main:2832 - Общее число кадров оценено из длительности и FPS: 3601
+[2025-05-14 19:36:10,926] I MainThread - main:2842 - Используемый аудио битрейт (из метаданных): 127999 bps
+[2025-05-14 19:36:10,928] I MainThread - add_ecc:670 - Galois ECC: Data(64b->187b) -> Packet(255b).
+[2025-05-14 19:36:10,928] I MainThread - check_compatibility_and_choose_output:794 - Проверка совместимости и выбор параметров выхода:
+[2025-05-14 19:36:10,928] I MainThread - check_compatibility_and_choose_output:795 -   Вход: Видео='h264', Аудио='aac' (есть: True)
+[2025-05-14 19:36:10,928] I MainThread - check_compatibility_and_choose_output:800 -   Рекомендуемый видеокодер для 'головы' (temp_file): libx264
+[2025-05-14 19:36:10,928] I MainThread - check_compatibility_and_choose_output:875 -   Итоговое решение для финального файла: Расширение='.mp4', Видеокодер 'головы' (для temp файла)='libx264', Действие для аудио 'хвоста' (FFmpeg)='copy'
+[2025-05-14 19:36:10,928] I MainThread - main:2883 - Расчетная 'голова' для ЦВЗ: 1152 кадров.
+[2025-05-14 19:36:10,928] I MainThread - main:2884 - Видеокодер для 'головы': libx264
+[2025-05-14 19:36:10,928] I MainThread - main:2885 - Финальный файл: 'watermarked_ffmpeg_t9.mp4', Временная голова: 'watermarked_ffmpeg_t9_head.mp4'
+[2025-05-14 19:36:10,928] I MainThread - main:2903 - Анализ I-кадров оригинального видео...
+[2025-05-14 19:36:10,975] I MainThread - get_iframe_start_times:754 - Найдено 71 уникальных I-кадров (по пакетам). Первые 5: ['0.000s', '3.086s', '6.548s', '6.715s', '7.591s']
+[2025-05-14 19:36:10,976] I MainThread - main:2909 - Найдено 71 I-кадров.
+[2025-05-14 19:36:10,976] I MainThread - main:2912 - Чтение 'головы' (1152 кадров) и всех аудиопакетов...
+[2025-05-14 19:36:10,976] I MainThread - read_processing_head:1148 - Чтение 'головы': 1152 видеокадров и все аудиопакеты из 'f1720.mp4'...
+[2025-05-14 19:36:14,611] I MainThread - read_processing_head:1288 - Чтение 'головы' завершено. Декодировано 1152 видеокадров. Собрано 6469 аудиопакетов.
+[2025-05-14 19:36:14,611] I MainThread - main:2935 - Прочитано 1152 видеокадров для 'головы'. Собрано 6469 аудиопакетов.
+[2025-05-14 19:36:14,611] I MainThread - main:2941 - Сгенерирован Payload ID: 81ddb9a958d382c1
+[2025-05-14 19:36:14,612] I MainThread - main:2945 - Оригинальный ID сохранен в: original_watermark_id.txt
+[2025-05-14 19:36:14,612] I MainThread - main:2950 - Встраивание ЦВЗ в 'голову'...
+[2025-05-14 19:36:14,612] I MainThread - embed_watermark_in_video:2513 - --- Embed Head Start (Processing 1152 frames / 576 pairs) ---
+[2025-05-14 19:36:14,612] I MainThread - embed_watermark_in_video:2514 - Using max_workers: 8
+[2025-05-14 19:36:14,613] I MainThread - add_ecc:670 - Galois ECC: Data(64b->187b) -> Packet(255b).
+[2025-05-14 19:36:14,613] I MainThread - embed_watermark_in_video:2537 - Гибридный режим: Первый пакет создан как ECC(n=255, t=9).
+[2025-05-14 19:36:14,613] I MainThread - embed_watermark_in_video:2551 - Гибридный режим: Добавлено 14 Raw пакетов.
+[2025-05-14 19:36:14,614] I MainThread - embed_watermark_in_video:2567 - Head processing details:
+[2025-05-14 19:36:14,614] I MainThread - embed_watermark_in_video:2568 -   Target packets: 15 (ECC(n=255, t=9) + 14 Raw)
+[2025-05-14 19:36:14,614] I MainThread - embed_watermark_in_video:2569 -   Total bits prepared: 1151
+[2025-05-14 19:36:14,614] I MainThread - embed_watermark_in_video:2570 -   Available pairs in head: 576, Pairs needed: 576, Pairs to process: 576
+[2025-05-14 19:36:14,614] I MainThread - embed_watermark_in_video:2571 -   Actual bits to embed in head: 1151
+[2025-05-14 19:36:15,587] I MainThread - embed_watermark_in_video:2624 - Launching 8 batches (576 pairs) in ThreadPool (max_workers=8, batch\u224872)...
+[2025-05-14 19:36:16,830] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:0 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:16,831] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:504 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:16,835] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:288 R:7] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:16,835] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:144 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:16,837] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:72 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:16,839] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:216 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:16,850] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:432 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:16,859] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:360 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,160] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:504 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,161] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:360 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:17,165] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:144 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,166] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:0 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,167] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:72 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,168] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:288 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,169] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:216 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,171] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:432 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,662] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:505 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,730] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:289 R:7] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,778] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:1 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,802] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:505 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,818] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:433 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:17,827] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:217 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,872] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:73 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:17,875] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:361 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:17,878] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:145 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:17,889] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:289 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,926] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:1 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,977] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:217 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:17,979] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:433 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:18,018] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:73 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,043] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:145 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:18,071] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:361 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:18,360] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:506 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,416] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:290 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,503] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:506 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:18,508] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:2 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,566] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:434 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,571] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:290 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,575] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:218 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,632] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:2 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,679] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:434 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:18,687] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:218 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:18,725] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:146 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:18,740] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:74 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,759] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:362 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,876] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:146 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:18,882] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:74 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:18,901] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:362 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:19,037] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:291 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:19,049] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:507 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:19,146] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:291 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:19,175] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:3 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:19,181] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:507 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:19,219] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:219 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:19,314] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:3 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:19,315] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:435 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:19,347] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:219 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:19,458] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:435 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:19,613] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:147 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:19,645] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:363 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:19,660] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:75 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:19,669] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:292 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:19,779] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:508 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:19,787] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:147 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:19,794] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:292 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:19,812] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:363 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:19,821] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:75 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:19,893] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:508 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:19,910] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:220 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:19,926] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:4 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:20,021] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:220 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,023] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:4 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:20,042] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:436 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:20,163] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:436 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:20,296] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:293 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:20,396] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:148 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:20,421] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:293 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:20,444] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:509 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,468] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:76 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:20,481] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:364 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,543] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:148 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:20,577] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:509 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,580] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:221 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:20,581] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:5 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,620] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:76 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,635] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:364 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:20,708] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:221 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:20,720] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:5 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:20,726] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:437 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:20,861] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:437 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:21,018] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:294 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,131] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:294 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:21,163] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:510 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:21,241] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:149 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:21,280] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:222 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:21,302] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:510 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:21,312] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:77 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:21,318] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:6 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,322] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:365 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:21,346] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:149 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:21,386] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:222 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:21,391] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:438 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:21,427] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:365 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,429] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:6 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,430] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:77 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:21,501] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:438 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,620] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:295 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,732] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:295 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,802] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:511 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,905] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:223 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,945] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:511 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:21,966] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:150 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,015] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:7 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,018] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:223 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,100] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:366 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,115] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:78 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:22,116] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:439 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:22,116] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:150 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:22,139] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:7 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,223] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:366 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,229] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:439 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,249] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:78 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:22,267] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:296 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,385] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:296 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,479] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:512 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:22,569] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:224 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,617] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:512 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,678] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:224 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,752] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:8 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,854] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:440 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,869] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:151 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,874] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:8 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:22,932] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:297 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:22,971] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:440 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:22,987] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:367 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:23,008] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:79 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,016] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:151 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:23,041] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:297 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:23,107] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:367 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:23,139] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:79 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:23,140] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:513 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,172] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:225 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,236] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:513 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,292] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:225 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,383] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:9 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:23,466] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:441 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,511] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:9 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:23,577] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:298 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:23,578] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:441 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,655] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:152 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,675] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:298 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,799] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:514 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,799] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:152 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,800] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:368 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:23,810] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:80 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,815] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:226 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,907] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:514 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,910] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:368 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:23,922] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:226 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,928] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:80 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:23,977] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:10 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,057] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:442 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,095] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:10 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,161] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:299 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,180] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:442 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,270] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:299 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,367] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:153 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,444] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:515 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,445] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:227 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:24,501] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:153 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:24,533] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:369 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:24,549] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:81 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,561] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:227 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:24,566] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:515 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,626] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:11 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:24,664] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:369 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:24,677] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:81 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,736] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:443 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,753] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:11 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:24,768] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:300 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:24,847] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:443 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:24,887] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:300 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:25,062] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:228 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,131] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:516 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,139] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:154 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,173] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:228 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:25,256] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:516 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:25,267] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:370 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,277] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:154 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:25,290] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:12 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,311] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:82 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,343] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:444 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,400] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:370 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,405] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:12 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:25,430] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:301 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,434] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:82 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:25,456] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:444 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,542] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:301 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,693] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:229 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,779] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:517 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,809] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:229 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:25,898] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:517 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:25,899] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:155 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:25,907] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:13 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,018] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:155 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:26,020] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:445 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,039] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:13 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,053] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:371 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,071] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:83 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:26,075] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:302 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:26,134] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:445 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,171] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:371 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,193] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:302 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:26,217] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:83 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:26,322] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:230 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,466] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:230 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:26,490] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:518 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,635] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:518 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,656] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:14 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,670] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:156 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:26,768] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:14 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,773] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:303 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,783] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:446 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,795] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:156 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,819] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:372 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:26,877] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:303 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,886] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:84 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:26,895] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:446 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:26,933] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:372 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:27,005] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:231 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:27,012] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:84 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:27,118] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:519 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,122] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:231 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,231] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:519 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,250] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:15 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,363] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:15 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:27,363] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:157 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,364] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:304 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:27,377] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:447 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:27,466] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:447 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,468] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:304 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:27,487] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:157 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:27,488] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:373 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,583] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:232 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,600] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:85 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,606] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:373 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,674] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:520 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,684] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:232 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,736] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:85 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:27,787] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:520 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,797] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:16 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:27,903] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:16 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:27,947] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:448 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:27,950] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:305 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:28,043] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:158 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,052] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:305 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:28,055] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:448 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,152] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:233 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:28,175] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:158 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:28,183] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:374 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,254] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:233 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:28,300] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:521 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:28,309] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:86 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,309] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:374 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:28,389] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:17 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:28,421] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:521 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:28,456] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:86 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,499] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:17 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:28,556] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:306 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,560] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:449 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,650] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:306 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,656] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:449 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,738] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:234 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:28,774] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:159 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:28,848] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:234 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,901] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:522 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:28,912] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:375 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:28,925] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:159 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:28,994] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:18 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,008] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:522 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,025] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:375 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,052] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:87 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,094] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:18 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,105] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:307 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,160] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:450 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:29,177] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:87 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,211] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:307 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,297] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:450 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,336] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:235 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:29,446] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:235 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:29,533] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:523 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:29,535] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:160 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:29,630] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:19 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:29,657] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:523 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,664] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:160 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:29,665] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:376 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,699] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:308 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,733] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:19 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,795] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:376 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,798] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:88 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,808] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:308 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,813] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:451 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,922] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:236 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:29,935] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:451 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:29,937] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:88 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,048] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:236 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:30,169] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:524 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,254] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:20 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:30,265] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:524 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:30,292] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:161 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,312] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:309 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:30,345] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:20 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:30,406] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:161 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,418] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:377 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:30,428] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:309 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,432] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:452 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:30,527] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:452 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:30,534] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:377 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:30,539] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:237 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:30,561] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:89 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,638] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:237 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:30,678] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:89 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:30,728] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:525 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:30,831] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:21 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,837] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:525 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:30,905] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:310 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:30,934] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:21 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:30,987] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:162 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:31,005] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:310 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:31,007] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:453 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,128] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:162 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:31,135] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:378 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,139] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:238 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,147] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:453 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,242] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:238 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,263] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:378 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,330] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:526 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:31,334] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:90 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:31,439] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:22 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,448] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:526 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,483] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:90 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:31,517] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:311 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,543] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:22 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,614] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:311 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,671] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:454 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,691] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:163 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:31,705] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:239 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:31,765] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:454 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,811] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:239 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:31,823] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:163 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:31,890] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:379 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:31,912] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:527 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,004] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:527 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,015] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:23 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,018] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:379 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,092] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:312 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:32,096] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:91 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:32,113] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:23 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,185] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:312 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:32,205] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:455 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,218] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:91 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:32,245] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:240 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,301] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:455 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,352] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:240 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,372] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:164 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,485] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:528 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,503] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:164 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:32,577] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:380 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,582] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:528 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,601] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:24 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,656] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:313 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,702] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:380 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,707] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:24 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,744] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:313 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,766] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:456 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,804] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:241 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,811] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:92 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:32,882] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:456 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:32,913] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:241 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:32,945] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:92 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,086] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:529 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:33,097] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:165 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:33,211] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:529 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:33,238] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:25 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,263] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:314 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,265] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:165 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:33,352] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:381 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:33,367] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:25 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:33,391] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:314 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:33,418] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:457 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:33,423] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:242 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:33,488] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:381 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,523] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:457 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:33,528] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:242 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,591] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:93 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,726] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:530 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:33,730] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:93 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:33,831] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:530 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,882] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:166 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:33,884] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:315 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:33,897] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:26 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:33,996] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:315 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,005] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:458 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,008] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:26 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,009] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:166 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,031] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:243 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,048] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:382 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:34,095] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:458 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,135] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:243 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,160] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:382 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:34,275] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:94 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:34,297] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:531 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,415] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:531 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,417] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:94 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:34,482] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:27 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:34,483] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:316 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,562] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:459 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,580] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:167 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,597] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:27 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:34,609] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:244 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,610] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:316 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:34,661] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:459 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,702] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:167 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:34,739] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:244 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:34,768] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:383 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:34,905] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:383 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:34,970] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:532 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:35,064] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:95 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,103] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:532 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,136] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:28 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:35,147] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:317 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,192] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:95 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:35,241] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:28 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:35,256] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:460 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,256] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:317 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,264] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:245 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:35,303] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:168 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,362] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:460 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:35,369] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:245 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,428] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:168 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:35,460] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:384 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,589] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:533 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:35,607] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:384 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,696] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:533 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,708] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:29 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,731] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:318 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,764] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:96 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,825] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:29 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,838] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:461 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,851] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:318 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,878] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:246 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:35,899] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:96 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:35,942] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:461 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,006] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:246 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,015] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:169 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:36,138] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:169 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:36,228] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:534 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:36,230] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:385 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:36,343] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:534 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:36,363] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:385 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:36,381] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:30 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:36,382] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:319 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,492] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:462 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:36,509] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:319 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,511] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:30 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:36,523] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:247 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,527] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:97 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:36,590] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:462 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:36,626] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:247 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,650] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:97 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:36,725] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:170 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:36,851] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:535 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:36,862] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:170 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:36,952] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:535 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:37,037] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:320 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,044] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:31 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,046] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:386 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,090] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:463 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:37,114] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:248 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,143] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:320 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:37,155] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:31 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:37,162] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:386 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,183] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:463 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,209] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:248 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,244] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:98 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,377] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:98 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,451] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:536 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:37,464] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:171 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:37,558] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:536 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:37,602] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:171 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:37,634] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:321 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,654] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:32 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,747] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:464 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:37,748] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:249 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:37,754] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:321 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:37,773] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:387 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:37,776] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:32 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,850] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:249 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:37,858] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:464 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:37,891] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:387 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:38,036] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:99 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:38,067] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:537 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:38,201] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:537 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:38,224] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:99 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:38,274] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:172 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:38,281] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:322 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:38,331] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:33 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:38,410] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:322 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:38,418] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:172 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:38,422] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:250 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:38,463] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:33 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:38,470] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:465 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:38,529] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:250 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:38,608] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:465 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:38,629] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:388 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:38,755] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:388 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:38,797] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:538 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:38,865] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:100 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:38,893] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:323 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:38,928] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:538 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,005] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:323 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:39,008] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:100 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,064] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:34 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:39,067] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:173 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,073] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:251 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,132] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:466 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:39,188] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:34 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,190] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:251 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,198] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:173 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,240] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:466 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,367] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:389 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:39,422] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:539 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:39,507] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:389 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,507] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:324 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,533] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:539 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,583] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:101 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,610] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:324 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,702] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:35 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,707] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:101 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,709] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:252 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,728] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:467 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:39,769] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:174 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:39,816] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:35 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:39,820] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:252 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:39,856] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:467 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:39,893] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:174 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,059] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:540 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,118] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:390 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,123] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:325 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:40,186] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:540 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,244] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:325 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,254] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:390 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,384] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:253 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,415] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:102 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,417] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:36 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:40,507] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:253 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:40,540] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:468 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:40,541] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:36 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,588] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:102 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,610] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:175 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,673] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:468 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,744] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:175 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,789] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:541 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,803] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:326 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:40,906] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:541 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,918] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:326 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:40,940] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:391 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,018] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:254 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,076] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:37 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,088] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:391 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,142] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:254 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,181] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:37 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,230] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:469 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,232] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:103 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,350] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:469 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,363] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:176 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,372] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:327 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,380] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:103 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,389] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:542 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,459] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:327 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,490] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:176 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,492] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:542 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,629] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:255 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:41,674] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:38 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,685] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:392 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,732] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:255 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,776] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:38 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,808] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:392 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,820] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:470 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:41,888] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:328 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:41,933] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:470 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:41,976] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:104 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:41,977] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:543 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:41,988] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:328 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,054] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:177 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,098] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:104 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,102] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:543 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,186] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:177 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,208] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:256 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,282] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:39 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,312] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:256 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:42,394] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:39 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,430] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:393 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:42,432] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:329 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,465] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:471 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,542] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:329 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,554] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:393 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,572] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:471 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,633] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:544 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:42,744] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:105 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:42,753] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:544 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,799] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:178 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:42,811] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:257 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,883] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:105 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:42,914] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:257 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:42,925] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:40 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:42,929] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:178 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:42,980] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:330 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,025] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:40 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,067] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:472 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,093] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:330 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,140] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:394 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,159] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:472 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,229] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:545 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,268] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:394 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,345] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:545 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,396] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:258 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,496] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:106 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:43,513] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:258 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,521] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:179 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,532] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:41 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,540] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:331 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:43,624] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:106 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:43,645] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:331 R:7] ACTION: Modifying 0->1.
+[2025-05-14 19:36:43,665] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:179 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:43,666] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:41 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,671] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:473 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,795] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:473 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,856] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:546 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:43,873] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:395 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:43,956] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:546 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:43,993] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:395 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,000] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:259 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,103] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:332 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:44,107] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:259 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,179] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:42 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:44,193] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:332 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,229] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:107 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:44,254] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:180 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:44,272] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:474 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:44,279] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:42 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:44,359] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:107 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,379] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:474 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:44,391] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:180 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:44,430] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:547 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,556] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:547 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,570] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:260 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:44,577] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:396 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:44,621] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:333 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:44,655] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:260 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:44,702] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:396 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,713] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:333 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,744] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:43 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:44,849] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:475 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:44,853] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:43 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:44,909] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:108 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,940] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:475 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:44,966] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:181 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:45,000] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:548 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:45,051] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:108 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:45,112] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:181 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,117] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:261 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:45,122] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:548 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,183] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:334 R:7] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,224] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:261 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:45,292] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:334 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,303] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:397 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:45,369] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:44 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,485] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:44 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,513] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:397 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:45,568] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:476 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:45,696] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:476 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:45,724] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:549 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:45,764] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:262 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:45,795] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:335 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:45,839] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:109 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:45,841] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:549 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:45,864] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:182 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,875] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:262 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,885] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:335 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:45,996] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:109 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:46,013] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:182 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:46,018] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:45 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:46,124] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:45 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,230] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:398 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,278] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:477 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,340] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:550 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:46,358] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:398 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:46,371] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:336 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:46,389] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:477 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:46,402] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:263 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:46,444] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:550 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:46,464] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:336 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,492] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:263 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:46,627] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:110 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:46,627] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:183 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:46,636] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:46 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,754] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:46 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,764] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:110 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:46,764] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:183 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:46,867] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:478 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:46,922] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:551 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:46,925] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:337 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:46,940] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:399 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:47,003] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:264 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,007] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:478 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,026] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:337 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:47,049] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:551 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:47,072] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:399 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,106] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:264 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:47,258] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:47 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:47,343] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:184 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,382] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:47 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,387] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:111 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:47,470] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:184 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,489] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:338 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:47,514] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:111 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:47,518] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:479 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:47,526] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:552 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:47,573] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:338 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:47,594] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:265 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:47,624] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:479 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:47,646] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:400 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:47,647] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:552 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:47,708] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:265 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:47,791] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:400 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:47,863] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:48 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:47,974] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:48 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,061] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:339 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,090] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:185 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:48,129] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:480 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:48,133] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:112 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,133] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:553 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:48,169] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:339 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:48,205] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:185 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,254] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:266 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,264] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:480 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:48,267] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:553 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:48,274] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:112 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:48,382] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:266 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,436] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:401 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:48,497] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:49 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,571] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:401 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:48,616] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:49 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,640] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:340 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:48,739] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:340 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,796] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:481 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:48,811] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:554 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,816] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:186 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,874] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:267 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:48,925] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:481 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,928] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:113 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:48,938] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:554 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:48,949] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:186 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:48,978] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:267 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:49,046] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:113 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:49,088] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:50 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,139] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:402 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,174] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:341 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:49,197] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:50 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,275] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:402 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,276] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:341 R:7] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,468] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:482 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,469] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:555 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:49,480] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:268 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,542] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:187 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,571] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:482 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,578] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:555 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:49,579] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:268 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:49,654] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:114 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,662] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:187 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:49,702] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:51 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,711] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:342 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,768] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:114 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:49,818] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:342 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:49,819] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:51 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,844] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:403 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:49,964] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:403 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:50,048] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:483 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,062] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:269 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:50,072] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:556 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,160] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:483 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,175] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:269 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:50,178] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:556 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,232] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:188 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,266] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:343 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,324] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:52 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:50,349] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:115 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,366] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:188 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:50,379] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:343 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,433] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:52 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:50,471] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:115 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,573] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:404 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,638] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:484 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:50,671] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:557 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,679] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:270 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:50,710] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:404 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:50,732] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:484 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,771] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:270 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,778] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:557 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:50,804] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:344 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,902] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:344 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,918] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:53 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:50,935] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:189 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,027] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:53 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,033] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:116 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:51,065] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:189 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,166] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:116 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:51,233] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:485 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:51,250] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:271 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:51,260] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:558 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:51,310] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:405 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:51,352] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:271 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,369] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:485 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:51,378] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:345 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,384] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:558 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,456] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:405 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:51,483] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:345 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,556] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:54 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,671] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:54 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,688] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:190 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:51,817] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:117 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:51,821] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:190 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,846] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:272 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:51,914] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:559 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:51,916] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:486 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:51,946] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:117 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,949] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:346 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:51,953] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:272 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:52,027] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:559 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:52,037] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:486 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:52,065] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:346 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,066] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:406 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:52,206] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:406 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,214] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:55 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:52,329] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:55 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:52,408] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:191 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,463] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:273 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,547] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:191 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,571] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:273 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:52,574] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:560 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:52,576] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:347 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:52,581] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:487 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,598] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:118 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,671] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:347 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,675] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:560 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:52,692] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:487 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,719] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:118 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:52,766] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:407 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,836] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:56 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:52,904] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:407 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:52,951] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:56 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,058] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:274 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,160] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:348 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:53,161] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:192 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,181] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:274 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,202] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:561 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:53,215] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:488 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,241] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:348 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,306] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:192 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,313] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:561 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:53,329] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:488 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:53,358] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:119 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,471] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:57 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,503] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:119 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,517] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:408 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,584] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:57 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,634] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:408 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,695] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:275 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,699] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:349 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,799] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:349 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,808] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:275 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:53,819] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:562 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:53,822] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:489 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:53,930] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:193 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:53,933] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:489 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:53,935] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:562 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,033] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:58 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,056] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:193 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,086] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:120 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:54,148] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:58 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,210] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:409 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,223] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:350 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,229] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:120 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,285] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:276 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:54,315] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:350 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,320] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:409 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,354] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:490 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,382] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:563 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,398] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:276 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,448] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:490 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,482] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:563 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:54,653] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:59 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,685] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:194 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,755] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:59 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,790] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:351 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:54,814] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:194 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,851] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:121 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:54,902] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:351 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:54,944] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:277 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:54,962] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:410 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:54,978] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:491 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:54,987] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:121 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,024] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:564 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:55,048] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:277 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,094] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:491 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,103] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:410 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,132] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:564 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:55,295] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:60 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,381] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:352 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,419] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:60 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,431] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:195 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,467] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:352 R:7] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,564] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:195 R:4] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:55,576] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:278 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,640] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:122 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:55,658] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:492 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,670] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:565 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,704] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:278 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,722] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:411 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,789] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:492 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:55,795] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:565 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,799] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:122 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:55,866] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:411 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:55,956] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:61 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:55,959] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:353 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,060] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:353 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,064] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:61 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,160] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:196 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:56,202] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:279 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:56,248] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:196 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:56,285] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:279 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:56,310] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:493 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,311] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:566 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:56,346] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:123 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,388] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:412 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:56,422] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:566 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:56,423] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:493 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:56,470] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:123 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:56,490] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:412 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,576] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:62 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,581] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:354 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:56,681] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:354 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:56,690] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:62 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,773] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:197 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:56,774] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:280 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,873] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:280 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,873] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:197 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:36:56,908] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:494 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:56,934] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:567 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:56,983] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:124 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:57,025] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:494 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,046] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:413 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,065] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:567 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:57,091] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:124 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,147] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:413 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,203] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:355 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:57,222] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:63 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,312] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:355 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:36:57,326] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:63 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,398] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:281 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,472] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:198 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:57,517] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:281 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,602] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:198 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,632] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:495 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:57,648] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:568 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,698] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:125 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:57,768] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:495 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,776] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:568 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,817] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:414 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,834] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:356 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:57,867] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:125 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,917] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:64 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:57,940] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:356 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:57,959] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:414 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:58,037] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:64 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:58,053] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:282 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:58,179] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:282 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:58,251] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:199 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:58,341] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:569 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:36:58,392] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:199 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:58,446] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:496 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:58,466] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:569 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:58,492] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:357 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:58,552] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:496 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:58,563] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:126 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:58,606] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:357 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:58,614] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:65 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:58,616] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:415 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:58,675] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:126 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:58,702] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:283 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:58,733] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:65 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:58,743] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:415 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:58,800] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:283 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:58,922] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:570 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:58,942] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:200 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:58,986] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:497 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:59,013] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:570 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:59,080] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:200 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:59,085] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:358 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:36:59,090] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:497 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:59,186] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:358 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:59,224] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:66 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:59,267] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:127 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:59,287] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:284 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:36:59,300] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:416 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:59,338] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:66 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:36:59,393] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:127 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:59,399] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:284 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:59,423] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:416 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:59,572] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:571 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:36:59,658] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:498 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:59,673] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:571 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:59,721] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:359 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:36:59,764] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:201 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:36:59,770] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:498 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:36:59,817] I ThreadPoolExecutor-0_4 - embed_frame_pair:2235 - [P:359 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:36:59,935] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:67 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:36:59,937] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:285 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:36:59,943] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:201 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:37:00,040] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:285 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,054] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:67 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,166] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:128 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:00,172] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:417 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,209] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:572 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:00,322] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:128 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,329] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:572 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,336] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:417 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,345] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:499 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:00,460] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:499 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:00,564] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:286 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,600] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:202 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,601] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:68 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,647] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:286 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:00,714] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:202 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:00,721] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:68 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,858] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:573 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,893] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:418 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,920] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:129 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:00,973] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:573 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:37:00,983] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:500 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,013] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:418 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:01,037] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:129 R:4] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,064] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:287 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,096] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:500 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:01,153] I ThreadPoolExecutor-0_3 - embed_frame_pair:2235 - [P:287 R:7] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,229] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:69 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,276] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:203 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,333] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:69 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:01,382] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:203 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,449] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:574 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,555] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:574 R:3] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,581] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:419 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,586] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:130 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,587] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:501 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,693] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:419 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:01,695] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:130 R:4] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:01,696] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:501 R:5] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,794] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:70 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,798] W ThreadPoolExecutor-0_7 - embed_frame_pair:2127 - [P:575] Mismatch bits/rings: 1 vs 2. Using min len 1.
+[2025-05-14 19:37:01,859] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:204 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:01,892] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:70 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:37:01,961] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:204 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:01,991] I ThreadPoolExecutor-0_7 - embed_frame_pair:2235 - [P:575 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:37:02,140] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:502 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:02,186] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:420 R:3] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:02,200] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:131 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:02,220] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:502 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:37:02,275] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:420 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:02,289] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:71 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:02,298] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:131 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:37:02,363] I ThreadPoolExecutor-0_0 - embed_frame_pair:2235 - [P:71 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:02,406] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:205 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:02,474] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:205 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:02,566] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:503 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:37:02,609] I ThreadPoolExecutor-0_6 - embed_frame_pair:2235 - [P:503 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:02,628] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:421 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:02,653] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:132 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:02,690] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:421 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:37:02,721] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:132 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:37:02,805] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:206 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:02,860] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:206 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:02,998] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:422 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:03,017] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:133 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,049] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:422 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:03,079] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:133 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,122] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:207 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,166] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:207 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:03,309] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:423 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,338] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:134 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,347] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:423 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,382] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:134 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:03,444] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:208 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,486] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:208 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:03,623] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:424 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:03,667] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:424 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,670] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:135 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,728] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:135 R:5] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,782] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:209 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:03,831] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:209 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:03,937] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:425 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:03,991] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:425 R:5] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:04,002] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:136 R:6] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:04,048] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:136 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:04,104] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:210 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:04,152] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:210 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:04,257] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:426 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:37:04,301] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:426 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:04,305] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:137 R:6] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:04,358] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:137 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:04,403] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:211 R:0] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:04,441] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:211 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:04,569] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:427 R:0] ACTION: Modifying 0->1.
+[2025-05-14 19:37:04,597] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:138 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:04,619] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:427 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:04,647] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:138 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:04,696] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:212 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:04,735] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:212 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:04,877] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:428 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:04,897] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:139 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:04,921] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:428 R:1] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:04,943] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:139 R:6] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,001] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:213 R:0] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:05,038] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:213 R:2] ACTION: Modifying 1->0.
+[2025-05-14 19:37:05,194] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:429 R:3] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,200] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:140 R:5] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,236] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:429 R:4] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,242] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:140 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,299] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:214 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,334] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:214 R:3] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,503] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:430 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,503] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:141 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,545] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:141 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,547] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:430 R:6] ACTION: Modifying 1->0.
+[2025-05-14 19:37:05,583] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:215 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,602] I ThreadPoolExecutor-0_2 - embed_frame_pair:2235 - [P:215 R:1] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,749] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:142 R:0] ACTION: Modifying 1->0.
+[2025-05-14 19:37:05,755] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:431 R:2] ACTION: Modifying 0->1.
+[2025-05-14 19:37:05,784] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:142 R:2] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,786] I ThreadPoolExecutor-0_5 - embed_frame_pair:2235 - [P:431 R:1] ACTION: Strengthening bit 0.
+[2025-05-14 19:37:05,913] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:143 R:2] ACTION: Strengthening bit 1.
+[2025-05-14 19:37:05,929] I ThreadPoolExecutor-0_1 - embed_frame_pair:2235 - [P:143 R:1] ACTION: Modifying 1->0.
+[2025-05-14 19:37:05,985] I MainThread - embed_watermark_in_video:2666 - Processing 576 pairs finished in 51.37 sec.
+[2025-05-14 19:37:05,985] I MainThread - embed_watermark_in_video:2667 - Result: Processed OK: 576, Errors/Skipped: 0, Frames Updated: 1152.
+[2025-05-14 19:37:05,996] I MainThread - embed_watermark_in_video:2674 - Selected rings log saved: selected_rings_embed_pytorch.json
+[2025-05-14 19:37:05,996] I MainThread - embed_watermark_in_video:2678 - Function embed_watermark_in_video (head processing) finished.
+[2025-05-14 19:37:05,998] I MainThread - main:2963 - Встраивание ЦВЗ в 'голову' успешно завершено.
+[2025-05-14 19:37:06,493] I MainThread - main:2968 - Запись обработанной 'головы' и получение параметров...
+[2025-05-14 19:37:06,493] I MainThread - main:2974 - Используются опции видеокодера для головы: {'preset': 'medium', 'crf': '20', 'tune': 'zerolatency'}
+[2025-05-14 19:37:06,493] I MainThread - write_head_only:1402 - Запись 'головы' в 'watermarked_ffmpeg_t9_head.mp4' (1152 кадров)...
+[2025-05-14 19:37:06,493] I MainThread - write_head_only:1403 -   Видеокодер для головы: libx264, Аудио для головы: aac
+[2025-05-14 19:37:06,496] I MainThread - write_head_only:1499 - Видеопоток 'головы' time_base установлен из оригинала: 1/24000
+[2025-05-14 19:37:06,496] I MainThread - write_head_only:1545 - Аудио для 'головы': Перекодирование из 'aac' в 'aac', Rate=44100, Layout=stereo
+[2025-05-14 19:37:06,496] I MainThread - write_head_only:1564 - Аудиопоток 'головы' time_base: 1/44100
+[2025-05-14 19:37:06,535] I MainThread - write_head_only:1620 - Для 'головы' декодировано 2156 аудиокадров из оригинала.
+[2025-05-14 19:37:06,535] I MainThread - write_head_only:1630 - Кодирование и мультиплексирование 1152 видеокадров для 'головы'...
+[2025-05-14 19:37:21,434] I MainThread - write_head_only:1677 - Закодировано и записано 1152 видеокадров в 'голову'.
+[2025-05-14 19:37:21,435] I MainThread - write_head_only:1700 - Финальная ТОЧНАЯ ВИДЕО длительность 'головы': 48.048000000s
+[2025-05-14 19:37:21,435] I MainThread - write_head_only:1712 - Кодирование и мультиплексирование 2156 аудиокадров для 'головы' (до ~48.048s видеовремени)...
+[2025-05-14 19:37:22,351] I MainThread - write_head_only:1751 - Закодировано и записано 2070 аудиокадров в 'голову'.
+[2025-05-14 19:37:22,351] I MainThread - write_head_only:1753 - Запись 'головы' в 'watermarked_ffmpeg_t9_head.mp4' завершена.
+[2025-05-14 19:37:22,818] I MainThread - main:3001 - Обработанная 'голова' записана: 'watermarked_ffmpeg_t9_head.mp4'. Точная видео длительность: 48.048000000 сек.
+[2025-05-14 19:37:22,818] I MainThread - main:3006 - Запуск умной склейки (Голова + Переход + Хвост_Копия)...
+[2025-05-14 19:37:22,818] I MainThread - concatenate_smart_stitch:1809 - Запуск concatenate_smart_stitch: Голова='watermarked_ffmpeg_t9_head.mp4', Выход='watermarked_ffmpeg_t9.mp4'
+[2025-05-14 19:37:22,818] I MainThread - concatenate_smart_stitch:1810 -   Конец головы: 48.048000000s. Порог для переходного сегмента: 0.005s.
+[2025-05-14 19:37:22,844] I MainThread - concatenate_smart_stitch:1860 - Точка стыка: Конец головы=48.048000000s, Начало след. I-кадра=48.798750000s. Дыра=0.750750000s
+[2025-05-14 19:37:22,844] I MainThread - concatenate_smart_stitch:1884 - Создание ПЕРЕКОДИРОВАННОГО переходного сегмента 'watermarked_ffmpeg_t9_transition_pid6392.mp4' (длительность ~0.751s)...
+[2025-05-14 19:37:23,815] I MainThread - concatenate_smart_stitch:1947 - Переходный сегмент 'watermarked_ffmpeg_t9_transition_pid6392.mp4' успешно создан.
+[2025-05-14 19:37:23,815] I MainThread - concatenate_smart_stitch:1963 - Создание КОПИРОВАННОГО хвоста 'watermarked_ffmpeg_t9_tail_copy_pid6392.mp4', начиная с 48.798750000s...
+[2025-05-14 19:37:23,815] I MainThread - concatenate_smart_stitch:1969 -   Действие для аудио при создании копированного хвоста: copy
+[2025-05-14 19:37:23,903] I MainThread - concatenate_smart_stitch:1995 - Копированный хвост 'watermarked_ffmpeg_t9_tail_copy_pid6392.mp4' успешно создан.
+[2025-05-14 19:37:23,903] I MainThread - concatenate_smart_stitch:2011 - Этап 2.5: Очистка/Перепаковка копированного хвоста в 'watermarked_ffmpeg_t9_tail_clean_pid6392.mp4'...
+[2025-05-14 19:37:23,991] I MainThread - concatenate_smart_stitch:2026 - Очищенный хвост 'watermarked_ffmpeg_t9_tail_clean_pid6392.mp4' успешно создан.
+[2025-05-14 19:37:23,991] I MainThread - concatenate_smart_stitch:2041 - Этап 3: Финальная склейка 3 сегментов в 'watermarked_ffmpeg_t9.mp4' (с -c copy)...
+[2025-05-14 19:37:24,259] I MainThread - concatenate_smart_stitch:2072 - FFmpeg: Финальная склейка (-c copy) успешно завершена.
+[2025-05-14 19:37:24,259] I MainThread - concatenate_smart_stitch:2084 - Процесс concatenate_smart_stitch успешно завершен за 1.44 сек.
+[2025-05-14 19:37:24,268] I MainThread - main:3023 - Временный файл 'головы' 'watermarked_ffmpeg_t9_head.mp4' успешно удален.
+[2025-05-14 19:37:24,269] I MainThread - main:3042 - Финальный файл успешно создан: 'watermarked_ffmpeg_t9.mp4' (размер: 42236111 байт).
+[2025-05-14 19:37:24,269] I MainThread - main:3050 - --- Общее Время Выполнения Скрипта: 73.55 сек ---
+[2025-05-14 19:37:24,269] I MainThread - <module>:3141 - Скрипт watermark_embedder.py завершен с кодом выхода 0.
