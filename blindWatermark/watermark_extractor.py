@@ -18,6 +18,7 @@ import hashlib
 # import pstats
 import torch
 import torch.nn.functional as F
+from av.video.reformatter import VideoReformatter
 from galois import BCH
 from line_profiler import profile
 
@@ -601,49 +602,186 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
     return batch_results
 
 # --- Вспомогательная функция чтения кадров ---
-def read_required_frames_opencv(video_path: str, num_frames_to_read: int) -> Optional[List[np.ndarray]]:
+def read_required_frames_pyav(
+        video_path: str,
+        num_frames_to_read: int,
+        preferred_video_stream_index: Optional[int] = None
+) -> Optional[List[np.ndarray]]:
     """
-    Читает ТОЛЬКО первые num_frames_to_read кадров с помощью OpenCV.
+    Читает ТОЛЬКО первые num_frames_to_read видеокадров из указанного видеопотока
+    с помощью PyAV и конвертирует их в список BGR NumPy массивов.
+
+    Args:
+        video_path: Путь к видеофайлу.
+        num_frames_to_read: Количество видеокадров для чтения.
+        preferred_video_stream_index: Предпочтительный индекс видеопотока.
+                                      Если None или не найден, будет выбран первый видеопоток.
+
+    Returns:
+        Список NumPy массивов (кадры в BGR) или None в случае критической ошибки.
+        Может вернуть пустой список, если num_frames_to_read <= 0.
     """
-    frames_opencv = []
-    cap = None
-    logging.info(f"[OpenCV Read Limited] Попытка открыть: '{video_path}' для чтения {num_frames_to_read} кадров")
+    # Предполагается, что PYAV_AVAILABLE - это глобальная переменная, как в вашем коде
+    if not PYAV_AVAILABLE:
+        logging.error("PyAV недоступен для read_required_frames_pyav.")
+        return None
+
+    if num_frames_to_read <= 0:
+        logging.debug("read_required_frames_pyav: num_frames_to_read <= 0, возвращаем пустой список.")
+        return []
+
+    frames_bgr_list: List[np.ndarray] = []
+    container: Optional[av.container.Container] = None
+    frames_decoded_count = 0
+
+    reformatter_to_bgr: Optional[VideoReformatter] = None
+    reformatter_yuv_for_cv_fallback: Optional[VideoReformatter] = None  # Переименовал для ясности
+
+    logging.info(f"[PyAV Read Limited] Открытие: '{video_path}' для чтения {num_frames_to_read} кадров.")
+
     try:
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            logging.error(f"[OpenCV Read Limited] Не удалось открыть файл: {video_path}")
+        container = av.open(video_path, mode='r', metadata_errors='ignore')
+
+        target_stream: Optional[av.stream.Stream] = None
+        if not container.streams.video:
+            logging.error(f"Видеопотоки не найдены в '{video_path}'.")
+            if container: container.close()
             return None
 
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps_cv = cap.get(cv2.CAP_PROP_FPS)
-        logging.debug(f"[OpenCV Read Limited] Видео: {width}x{height} @ {fps_cv:.2f} FPS")
+        # Логика выбора видеопотока
+        if preferred_video_stream_index is not None:
+            if 0 <= preferred_video_stream_index < len(container.streams.video):
+                target_stream = container.streams.video[preferred_video_stream_index]
+                logging.info(f"Выбран указанный видеопоток с индексом: {target_stream.index}")
+            else:
+                logging.warning(f"Указанный индекс видеопотока {preferred_video_stream_index} некорректен "
+                                f"(доступно {len(container.streams.video)}). Попытка использовать первый видеопоток.")
+                target_stream = None  # Сброс для выбора первого потока ниже
 
-        for i in range(num_frames_to_read):
-            ret, frame = cap.read()
-            if not ret or frame is None:
-                logging.warning(
-                    f"[OpenCV Read Limited] Не удалось прочитать кадр {i} или достигнут конец файла (запрошено {num_frames_to_read}, прочитано {len(frames_opencv)}).")
-                break
-            frames_opencv.append(frame)
-            if (i + 1) % 200 == 0:
-                logging.info(f"[OpenCV Read Limited] Прочитано кадров: {i + 1}/{num_frames_to_read}")
+        if target_stream is None:  # Если не был выбран предпочтительный или он был некорректен
+            target_stream = container.streams.video[0]
+            logging.info(
+                f"Используется первый найденный видеопоток с индексом: {target_stream.index} (Codec: {target_stream.codec_context.name if target_stream.codec_context else 'N/A'})")
 
-        logging.info(f"[OpenCV Read Limited] Чтение завершено. Получено кадров: {len(frames_opencv)}.")
-
-        if len(frames_opencv) == 0 and num_frames_to_read > 0:  # Если ничего не прочитали, но должны были
-            logging.error(f"[OpenCV Read Limited] Не удалось прочитать ни одного кадра из '{video_path}'.")
+        if not target_stream.codec_context:  # Дополнительная проверка
+            logging.error(f"У выбранного видеопотока (индекс {target_stream.index}) отсутствует codec_context.")
+            if container: container.close()
             return None
 
-        return frames_opencv
+        stream_fps_estimate_num = target_stream.average_rate or target_stream.r_frame_rate or 0
+        stream_fps_estimate = float(stream_fps_estimate_num) if stream_fps_estimate_num else 0.0
+        logging.debug(f"Чтение из потока: {target_stream.codec_context.name}, "
+                      f"{target_stream.codec_context.width}x{target_stream.codec_context.height} @ "
+                      f"{stream_fps_estimate:.2f} FPS (оценка)")
 
-    except Exception as e:
-        logging.error(f"[OpenCV Read Limited] Ошибка при чтении файла '{video_path}': {e}", exc_info=True)
+        for packet in container.demux(target_stream):
+            if packet.dts is None: continue
+            if packet.stream.index != target_stream.index: continue  # На всякий случай
+
+            try:
+                for frame in packet.decode():
+                    if frames_decoded_count >= num_frames_to_read: break
+                    if not (frame and isinstance(frame, av.VideoFrame)): continue
+
+                    np_frame_bgr: Optional[np.ndarray] = None
+                    frame_format_name = frame.format.name if frame.format else "unknown_format"
+
+                    try:
+                        np_frame_bgr = frame.to_ndarray(format='bgr24')
+                    except (av.FFmpegError, ValueError, TypeError) as e_to_ndarray:
+                        logging.debug(
+                            f"PyAV: Не удалось напрямую конвертировать кадр {frames_decoded_count} (формат: {frame_format_name}) в bgr24: {e_to_ndarray}. Попытка реформатирования.")
+
+                        if frame.width > 0 and frame.height > 0 and frame.format:
+                            try:
+                                if reformatter_to_bgr is None or \
+                                        reformatter_to_bgr.width != frame.width or \
+                                        reformatter_to_bgr.height != frame.height or \
+                                        reformatter_to_bgr.src_format != frame.format.name:
+                                    reformatter_to_bgr = VideoReformatter(frame.width, frame.height, 'bgr24',
+                                                                          src_format=frame.format.name)
+                                reformatted_frame_bgr = reformatter_to_bgr.reformat(frame)
+                                np_frame_bgr = reformatted_frame_bgr.to_ndarray(format='bgr24')
+                            except Exception as e_reformat_pyav_bgr:
+                                logging.debug(
+                                    f"PyAV: Ошибка реформатирования в BGR24 для кадра {frames_decoded_count}: {e_reformat_pyav_bgr}. Попытка через YUV+OpenCV.")
+                                np_frame_bgr = None
+
+                        if np_frame_bgr is None and frame.width > 0 and frame.height > 0 and frame.format:  # Если BGR реформат не удался
+                            try:
+                                if reformatter_yuv_for_cv_fallback is None or \
+                                        reformatter_yuv_for_cv_fallback.width != frame.width or \
+                                        reformatter_yuv_for_cv_fallback.height != frame.height or \
+                                        reformatter_yuv_for_cv_fallback.src_format != frame.format.name:
+                                    reformatter_yuv_for_cv_fallback = VideoReformatter(frame.width, frame.height,
+                                                                                       'yuv420p',
+                                                                                       src_format=frame.format.name)
+
+                                frame_yuv = reformatter_yuv_for_cv_fallback.reformat(frame)
+                                np_frame_yuv = frame_yuv.to_ndarray()
+
+                                if np_frame_yuv.shape[0] * 2 // 3 == frame_yuv.height:
+                                    np_frame_bgr = cv2.cvtColor(np_frame_yuv, cv2.COLOR_YUV2BGR_I420)
+                                else:
+                                    logging.warning(
+                                        f"PyAV: Некорректная форма YUV массива ({np_frame_yuv.shape}) для кадра {frames_decoded_count} после реформатирования в yuv420p.")
+                                    continue
+                            except Exception as e_reformat_cv_fallback:
+                                logging.error(
+                                    f"PyAV: Ошибка fallback реформатирования (YUV+CV2) для кадра {frames_decoded_count}: {e_reformat_cv_fallback}",
+                                    exc_info=False)
+                                continue
+
+                    if np_frame_bgr is not None:
+                        frames_bgr_list.append(np_frame_bgr)
+                        frames_decoded_count += 1
+                    else:
+                        logging.warning(
+                            f"PyAV: Не удалось получить BGR NumPy для кадра {frames_decoded_count} (исходный формат: {frame_format_name}). Кадр пропущен.")
+                        continue
+
+                    if frames_decoded_count % 100 == 0 and frames_decoded_count > 0:
+                        logging.debug(
+                            f"[PyAV Read Limited] Прочитано и декодировано кадров: {frames_decoded_count}/{num_frames_to_read}")
+
+            except (av.FFmpegError, ValueError) as e_decode:
+                logging.warning(f"PyAV: Ошибка декодирования пакета (кадр ~{frames_decoded_count}): {e_decode}")
+            except Exception as e_general_decode:
+                logging.error(
+                    f"PyAV: Неожиданная ошибка при декодировании пакета (кадр ~{frames_decoded_count}): {e_general_decode}",
+                    exc_info=True)
+
+            if frames_decoded_count >= num_frames_to_read: break
+
+        logging.info(f"[PyAV Read Limited] Чтение завершено. Получено кадров: {len(frames_bgr_list)}.")
+
+        if len(frames_bgr_list) < num_frames_to_read and num_frames_to_read > 0 and frames_decoded_count < num_frames_to_read:
+            logging.warning(
+                f"[PyAV Read Limited] Прочитано ({len(frames_bgr_list)}) меньше кадров, чем запрошено ({num_frames_to_read}). Возможно, достигнут конец файла раньше.")
+
+        if len(frames_bgr_list) == 0 and num_frames_to_read > 0:
+            logging.error(f"[PyAV Read Limited] Не удалось прочитать ни одного кадра из '{video_path}'.")
+            return None
+
+        return frames_bgr_list
+
+    except av.FFmpegError as e_av_critical:
+        logging.error(
+            f"[PyAV Read Limited] Критическая ошибка PyAV/FFmpeg при открытии/чтении '{video_path}': {e_av_critical}",
+            exc_info=True)
+        return None
+    except Exception as e_main_read:
+        logging.error(f"[PyAV Read Limited] Неожиданная критическая ошибка при чтении '{video_path}': {e_main_read}",
+                      exc_info=True)
         return None
     finally:
-        if cap:
-            cap.release()
-            logging.debug("[OpenCV Read Limited] VideoCapture освобожден.")
+        if container:
+            try:
+                container.close()
+                logging.debug("[PyAV Read Limited] Контейнер PyAV закрыт.")
+            except Exception:
+                logging.debug(
+                    "[PyAV Read Limited] Ошибка при явном закрытии контейнера PyAV (возможно, уже был закрыт или ошибка при открытии).")
 
 
 def generate_frame_pairs_opencv(video_path: str,
@@ -1190,7 +1328,12 @@ def main() -> int:
 
     read_start_time = time.time()
     logging.info(f"Чтение первых {num_frames_to_read} кадров с помощью OpenCV из '{input_video}'...")
-    frames_for_extraction = read_required_frames_opencv(input_video, num_frames_to_read)
+    video_stream_idx_to_read: Optional[int] = 0  # Или None, чтобы функция выбрала первый сама
+
+    logging.info(
+        f"Чтение первых {num_frames_to_read} кадров с помощью PyAV из '{input_video}' (поток: {video_stream_idx_to_read if video_stream_idx_to_read is not None else 'авто'})")
+
+    frames_for_extraction = read_required_frames_pyav(input_video, num_frames_to_read, preferred_video_stream_index=video_stream_idx_to_read)
     read_time = time.time() - read_start_time
 
     if frames_for_extraction is None:
