@@ -371,9 +371,11 @@ def dtcwt_pytorch_inverse(Yl: torch.Tensor, Yh: List[torch.Tensor], ifm: DTCWTIn
         return None
 
 
-# ---  ring_division для PyTorch ---
 def ring_division(lp_tensor: torch.Tensor, nr: int = N_RINGS, fn: int = -1) -> List[Optional[torch.Tensor]]:
-    """Разбивает 2D PyTorch тензор на N концентрических колец. Возвращает список тензоров координат."""
+    """
+    Разбивает 2D PyTorch тензор на N концентрических колец.
+    Возвращает список тензоров координат (GPU-версия).
+    """
     if not isinstance(lp_tensor, torch.Tensor) or lp_tensor.ndim != 2:
         logging.error(
             f"[Frame:{fn}] Invalid input for ring_division (expected 2D torch.Tensor). Got {type(lp_tensor)} with ndim {lp_tensor.ndim if hasattr(lp_tensor, 'ndim') else 'N/A'}")
@@ -393,32 +395,37 @@ def ring_division(lp_tensor: torch.Tensor, nr: int = N_RINGS, fn: int = -1) -> L
         center_r, center_c = (H - 1) / 2.0, (W - 1) / 2.0
         distances = torch.sqrt((rr - center_r) ** 2 + (cc - center_c) ** 2)
 
-        min_dist, max_dist = torch.tensor(0.0, device=device), torch.max(distances)
+        min_dist = torch.tensor(0.0, device=device, dtype=distances.dtype)
+        max_dist = torch.max(distances)
 
-        # Границы колец
         if max_dist < 1e-9:
-            logging.warning(f"[Frame:{fn}] Max distance in ring division is near zero ({max_dist}).")
-            ring_bins = torch.tensor([0.0, max_dist + 1e-6] + [max_dist + 1e-6] * (nr - 1), device=device)
+            logging.warning(
+                f"[Frame:{fn}] Max distance in ring division is near zero ({max_dist.item()}). All pixels might be in the first ring.")
+            ring_bins = torch.zeros(nr + 1, device=device, dtype=distances.dtype)
+            ring_bins[1:] = max_dist + 1e-6
         else:
-            ring_bins = torch.linspace(min_dist.item(), (max_dist + 1e-6).item(), nr + 1, device=device)
+            ring_bins = torch.linspace(min_dist.item(), (max_dist + 1e-6).item(), nr + 1, device=device,
+                                       dtype=distances.dtype)
 
-        ring_indices = torch.zeros_like(distances, dtype=torch.long) - 1
+        ring_indices = torch.full_like(distances, -1, dtype=torch.long)
+
         for i in range(nr):
             lower_bound = ring_bins[i]
             upper_bound = ring_bins[i + 1]
-            # Маска для текущего кольца
-            if i < nr - 1:
-                mask = (distances >= lower_bound) & (distances < upper_bound)
-            else:
+
+            mask = (distances >= lower_bound) & (distances < upper_bound)
+            if i == nr - 1:
                 mask = (distances >= lower_bound) & (distances <= upper_bound)
+
             ring_indices[mask] = i
 
-        ring_indices[distances < ring_bins[1]] = 0
+        if nr > 0 and ring_bins.numel() > 1:
+            ring_indices[distances < ring_bins[1]] = 0
 
         rings: List[Optional[torch.Tensor]] = [None] * nr
         for rdx in range(nr):
             coords_tensor = torch.nonzero(ring_indices == rdx, as_tuple=False)
-            if coords_tensor.shape[0] > 0:
+            if coords_tensor.numel() > 0:
                 rings[rdx] = coords_tensor.long()
             else:
                 logging.debug(f"[Frame:{fn}] Ring {rdx} is empty.")
@@ -429,87 +436,193 @@ def ring_division(lp_tensor: torch.Tensor, nr: int = N_RINGS, fn: int = -1) -> L
         return [None] * nr
 
 
-def calculate_entropies(rv: np.ndarray, fn: int = -1, ri: int = -1) -> Tuple[float, float]:
+def calculate_entropies_torch(rv_tensor: torch.Tensor, fn: int = -1, ri: int = -1) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-        Вычисляет шенноновскую энтропию и энтропию столкновений (по вашей старой формуле)
-        для одномерного NumPy массива значений пикселей (предположительно, нормализованных).
+    Вычисляет шенноновскую энтропию и "энтропию столкновений" (ваша формула)
+    для одномерного PyTorch тензора значений пикселей (нормализованных).
+    Все вычисления выполняются на устройстве rv_tensor.
 
-        Эта функция используется для оценки текстурности или сложности области (кольца)
-        с целью выбора наиболее подходящих областей для встраивания ЦВЗ.
+    Args:
+        rv_tensor: Одномерный PyTorch тензор значений пикселей, нормализованных в [0, 1].
+        fn: Номер кадра (для логирования, опционально).
+        ri: Индекс кольца (для логирования, опционально).
 
-        Args:
-            rv: Одномерный NumPy массив значений пикселей, нормализованных в диапазоне [0, 1].
-            fn: Номер кадра (для логирования, опционально).
-            ri: Индекс кольца (для логирования, опционально).
+    Returns:
+        Кортеж (torch.Tensor, torch.Tensor):
+            - Шенноновская энтропия (скалярный тензор).
+            - Энтропия столкновений (скалярный тензор).
+            Возвращает (0.0, 0.0) тензоры, если тензор пуст или все его значения одинаковы.
+    """
+    eps = 1e-12
+    shannon_entropy = torch.tensor(0.0, device=rv_tensor.device, dtype=rv_tensor.dtype)
+    collision_entropy = torch.tensor(0.0, device=rv_tensor.device, dtype=rv_tensor.dtype)
 
-        Returns:
-            Кортеж (float, float):
-                - Шенноновская энтропия.
-                - Энтропия столкновений (согласно вашей предыдущей реализации).
-                Возвращает (0.0, 0.0), если массив пуст или все его значения одинаковы.
-        """
-    eps = 1e-12;
-    shannon_entropy = 0.;
-    collision_entropy = 0.
+    if rv_tensor.numel() > 0:
+        if torch.all(rv_tensor == rv_tensor[0]):
+            return shannon_entropy, collision_entropy
 
-    if rv.size > 0:
-        rv_processed = np.clip(rv.copy(), 0.0, 1.0)
-        if np.all(rv_processed == rv_processed[0]): return 0.0, 0.0
+        # Для torch.histc нужен float тензор. Если rv_tensor уже float, это не повредит.
+        # Если он другой (например, double), лучше привести явно.
+        hist = torch.histc(rv_tensor.float(), bins=256, min=0.0, max=1.0)
 
-        hist, _ = np.histogram(rv_processed, bins=256, range=(0., 1.), density=False)
-        total_count = rv_processed.size
+        total_count = rv_tensor.numel()
         if total_count > 0:
             probabilities = hist / total_count
-            p = probabilities[probabilities > eps]
-            if p.size > 0:
-                shannon_entropy = -np.sum(p * np.log2(p))
-                ee = -np.sum(p * np.exp(1. - p))
+
+            p_mask = probabilities > eps
+            p = probabilities[p_mask]
+
+            if p.numel() > 0:
+                shannon_entropy = -torch.sum(p * torch.log2(p))
+
+                one_t = torch.tensor(1.0, device=p.device, dtype=p.dtype)
+                ee = -torch.sum(p * torch.exp(one_t - p))
                 collision_entropy = ee
+
     return shannon_entropy, collision_entropy
 
 
-def compute_adaptive_alpha_entropy(rv: np.ndarray, ri: int, fn: int) -> float:
+# def calculate_entropies(rv: np.ndarray, fn: int = -1, ri: int = -1) -> Tuple[float, float]:
+#     """
+#         Вычисляет шенноновскую энтропию и энтропию столкновений (по вашей старой формуле)
+#         для одномерного NumPy массива значений пикселей (предположительно, нормализованных).
+#
+#         Эта функция используется для оценки текстурности или сложности области (кольца)
+#         с целью выбора наиболее подходящих областей для встраивания ЦВЗ.
+#
+#         Args:
+#             rv: Одномерный NumPy массив значений пикселей, нормализованных в диапазоне [0, 1].
+#             fn: Номер кадра (для логирования, опционально).
+#             ri: Индекс кольца (для логирования, опционально).
+#
+#         Returns:
+#             Кортеж (float, float):
+#                 - Шенноновская энтропия.
+#                 - Энтропия столкновений (согласно вашей предыдущей реализации).
+#                 Возвращает (0.0, 0.0), если массив пуст или все его значения одинаковы.
+#         """
+#     eps = 1e-12;
+#     shannon_entropy = 0.;
+#     collision_entropy = 0.
+#
+#     if rv.size > 0:
+#         rv_processed = np.clip(rv.copy(), 0.0, 1.0)
+#         if np.all(rv_processed == rv_processed[0]): return 0.0, 0.0
+#
+#         hist, _ = np.histogram(rv_processed, bins=256, range=(0., 1.), density=False)
+#         total_count = rv_processed.size
+#         if total_count > 0:
+#             probabilities = hist / total_count
+#             p = probabilities[probabilities > eps]
+#             if p.size > 0:
+#                 shannon_entropy = -np.sum(p * np.log2(p))
+#                 ee = -np.sum(p * np.exp(1. - p))
+#                 collision_entropy = ee
+#     return shannon_entropy, collision_entropy
+
+def compute_adaptive_alpha_entropy_torch(
+        rv_tensor: torch.Tensor,
+        ri: int,
+        fn: int,
+        alpha_min_val: float = ALPHA_MIN,
+        alpha_max_val: float = ALPHA_MAX,
+        max_theoretical_entropy_val: float = MAX_THEORETICAL_ENTROPY
+) -> torch.Tensor:
     """
-        Вычисляет адаптивный коэффициент силы встраивания (альфа) на основе
-        энтропии и дисперсии значений пикселей в указанном кольце.
+    Вычисляет адаптивный коэффициент силы встраивания (альфа) на основе
+    энтропии и дисперсии значений пикселей в указанном кольце, используя PyTorch.
 
-        Более высокие значения альфы (ближе к ALPHA_MAX) используются для более
-        текстурированных/сложных областей, что позволяет встроить более сильный
-        (робастный) сигнал с меньшим риском визуальных искажений. Для гладких
-        областей используется меньшая альфа (ближе к ALPHA_MIN).
+    Args:
+        rv_tensor: Одномерный PyTorch тензор значений пикселей кольца (нормализованных).
+        ri: Индекс кольца (для логирования).
+        fn: Номер кадра (для логирования).
+        alpha_min_val, alpha_max_val, max_theoretical_entropy_val: Параметры.
 
-        Args:
-            rv: Одномерный NumPy массив значений пикселей кольца (нормализованных).
-            ri: Индекс кольца (для логирования).
-            fn: Номер кадра (для логирования).
+    Returns:
+        torch.Tensor: Адаптивный коэффициент альфа (скалярный тензор).
+    """
+    alpha_min_t = torch.tensor(alpha_min_val, device=rv_tensor.device, dtype=rv_tensor.dtype)
+    alpha_max_t = torch.tensor(alpha_max_val, device=rv_tensor.device, dtype=rv_tensor.dtype)
+    max_theoretical_entropy_t = torch.tensor(max_theoretical_entropy_val, device=rv_tensor.device,
+                                             dtype=rv_tensor.dtype)
 
-        Returns:
-            float: Адаптивный коэффициент альфа в диапазоне [ALPHA_MIN, ALPHA_MAX].
-                   Возвращает ALPHA_MIN, если данных для статистики недостаточно
-                   или при ошибках вычисления.
-        """
-    if rv.size < 10: return ALPHA_MIN
-    ve, _ = calculate_entropies(rv, fn, ri)
-    lv = np.var(rv)
-    if not np.isfinite(ve) or not np.isfinite(lv):
-        logging.warning(f"[F:{fn}, R:{ri}] Non-finite entropy ({ve}) or variance ({lv}). Using ALPHA_MIN.")
-        return ALPHA_MIN
+    if rv_tensor.numel() < 10:
+        return alpha_min_t
 
-    en = np.clip(ve / MAX_THEORETICAL_ENTROPY, 0., 1.)
-    vmp = 0.005;
-    vsc = 500
-    try:
-        exp_term = np.exp(-vsc * (lv - vmp))
-    except OverflowError:
-        exp_term = 0.0
-    tn = 1. / (1. + exp_term) if (1. + exp_term) != 0 else 1.0
+    ve_tensor, _ = calculate_entropies_torch(rv_tensor.float(), fn, ri)  # Убедимся, что float
+    lv_tensor = torch.var(rv_tensor.float())
 
-    we = .6;
-    wt = .4
-    mf = np.clip((we * en + wt * tn), 0., 1.)
-    fa = ALPHA_MIN + (ALPHA_MAX - ALPHA_MIN) * mf
-    logging.debug(f"[F:{fn}, R:{ri}] Alpha={fa:.4f} (E={ve:.3f},V={lv:.6f})")
-    return np.clip(fa, ALPHA_MIN, ALPHA_MAX)
+    if not torch.isfinite(ve_tensor) or not torch.isfinite(lv_tensor):
+        logging.warning(
+            f"[F:{fn}, R:{ri}] PyTorch: Non-finite entropy ({ve_tensor.item()}) or variance ({lv_tensor.item()}). Using ALPHA_MIN.")
+        return alpha_min_t
+
+    en_tensor = torch.clip(ve_tensor / (max_theoretical_entropy_t + 1e-9), 0., 1.)
+
+    vmp_t = torch.tensor(0.005, device=rv_tensor.device, dtype=rv_tensor.dtype)
+    vsc_t = torch.tensor(500.0, device=rv_tensor.device, dtype=rv_tensor.dtype)
+
+    exp_term_tensor = torch.exp(-vsc_t * (lv_tensor - vmp_t))
+
+    one_t = torch.tensor(1.0, device=rv_tensor.device, dtype=rv_tensor.dtype)
+    tn_denominator = one_t + exp_term_tensor
+    # Защита от деления на ноль, если (1+exp_term) может быть очень мал
+    tn_tensor = torch.where(tn_denominator < 1e-9, one_t, one_t / tn_denominator)
+
+    we_t = torch.tensor(0.6, device=rv_tensor.device, dtype=rv_tensor.dtype)
+    wt_t = torch.tensor(0.4, device=rv_tensor.device, dtype=rv_tensor.dtype)
+
+    mf_tensor = torch.clip((we_t * en_tensor + wt_t * tn_tensor), 0., 1.)
+
+    fa_tensor = alpha_min_t + (alpha_max_t - alpha_min_t) * mf_tensor
+
+    logging.debug(
+        f"[F:{fn}, R:{ri}] PyTorch Alpha={fa_tensor.item():.4f} (E={ve_tensor.item():.3f},V={lv_tensor.item():.6f})")
+    return torch.clip(fa_tensor, alpha_min_t, alpha_max_t)
+
+
+# def compute_adaptive_alpha_entropy(rv: np.ndarray, ri: int, fn: int) -> float:
+#     """
+#         Вычисляет адаптивный коэффициент силы встраивания (альфа) на основе
+#         энтропии и дисперсии значений пикселей в указанном кольце.
+#
+#         Более высокие значения альфы (ближе к ALPHA_MAX) используются для более
+#         текстурированных/сложных областей, что позволяет встроить более сильный
+#         (робастный) сигнал с меньшим риском визуальных искажений. Для гладких
+#         областей используется меньшая альфа (ближе к ALPHA_MIN).
+#
+#         Args:
+#             rv: Одномерный NumPy массив значений пикселей кольца (нормализованных).
+#             ri: Индекс кольца (для логирования).
+#             fn: Номер кадра (для логирования).
+#
+#         Returns:
+#             float: Адаптивный коэффициент альфа в диапазоне [ALPHA_MIN, ALPHA_MAX].
+#                    Возвращает ALPHA_MIN, если данных для статистики недостаточно
+#                    или при ошибках вычисления.
+#         """
+#     if rv.size < 10: return ALPHA_MIN
+#     ve, _ = calculate_entropies(rv, fn, ri)
+#     lv = np.var(rv)
+#     if not np.isfinite(ve) or not np.isfinite(lv):
+#         logging.warning(f"[F:{fn}, R:{ri}] Non-finite entropy ({ve}) or variance ({lv}). Using ALPHA_MIN.")
+#         return ALPHA_MIN
+#
+#     en = np.clip(ve / MAX_THEORETICAL_ENTROPY, 0., 1.)
+#     vmp = 0.005;
+#     vsc = 500
+#     try:
+#         exp_term = np.exp(-vsc * (lv - vmp))
+#     except OverflowError:
+#         exp_term = 0.0
+#     tn = 1. / (1. + exp_term) if (1. + exp_term) != 0 else 1.0
+#
+#     we = .6;
+#     wt = .4
+#     mf = np.clip((we * en + wt * tn), 0., 1.)
+#     fa = ALPHA_MIN + (ALPHA_MAX - ALPHA_MIN) * mf
+#     logging.debug(f"[F:{fn}, R:{ri}] Alpha={fa:.4f} (E={ve:.3f},V={lv:.6f})")
+#     return np.clip(fa, ALPHA_MIN, ALPHA_MAX)
 
 
 def get_fixed_pseudo_random_rings(pi: int, nr: int, ps: int) -> List[int]:
@@ -547,58 +660,169 @@ def get_fixed_pseudo_random_rings(pi: int, nr: int, ps: int) -> List[int]:
     return candidate_indices
 
 # --- calculate_perceptual_mask ---
-def calculate_perceptual_mask(ip_tensor: torch.Tensor, device: torch.device, fn: int = -1) -> Optional[torch.Tensor]:
-    """Вычисляет перцептуальную маску для 2D тензора."""
-    if not isinstance(ip_tensor, torch.Tensor) or ip_tensor.ndim != 2:
-        logging.error(f"Mask error F{fn}: Input is not a 2D tensor.")
+def get_sobel_kernels(device: torch.device, dtype: torch.dtype) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Создает ядра Собеля Gx и Gy для свертки."""
+    # Gx
+    kernel_x = torch.tensor([[-1., 0., 1.],
+                             [-2., 0., 2.],
+                             [-1., 0., 1.]], device=device, dtype=dtype)
+    # Gy
+    kernel_y = torch.tensor([[-1., -2., -1.],
+                             [0., 0., 0.],
+                             [1., 2., 1.]], device=device, dtype=dtype)
+    # Для conv2d ядро должно быть (out_channels, in_channels, H, W)
+    # У нас 1 входной канал (изображение) и 1 выходной (карта градиента)
+    return kernel_x.unsqueeze(0).unsqueeze(0), kernel_y.unsqueeze(0).unsqueeze(0)
+
+
+def get_gaussian_kernel(kernel_size: int = 11, sigma: float = 5.0, channels: int = 1,
+                        device: torch.device = torch.device('cpu'), dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    """Создает Гауссово ядро для свертки."""
+    if kernel_size % 2 == 0:
+        kernel_size += 1  # Должно быть нечетным
+        logging.warning(f"Размер Гауссова ядра был изменен на {kernel_size}, т.к. он должен быть нечетным.")
+
+    # Создаем 1D Гауссово ядро
+    x_cord = torch.arange(kernel_size, device=device, dtype=dtype)
+    x_grid = x_cord.repeat(kernel_size).view(kernel_size, kernel_size)
+    y_grid = x_grid.t()
+    xy_grid = torch.stack([x_grid, y_grid], dim=-1)
+
+    mean = (kernel_size - 1) / 2.
+    variance = sigma ** 2.
+
+    # Гауссова формула
+    gaussian_kernel = (1. / (2. * torch.pi * variance)) * \
+                      torch.exp(-torch.sum((xy_grid - mean) ** 2., dim=-1) / (2 * variance))
+
+    # Нормализуем ядро, чтобы сумма была равна 1
+    gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
+
+    # Делаем его совместимым с conv2d: (out_channels, in_channels/groups, H, W)
+    # Мы хотим, чтобы каждый канал обрабатывался независимо, поэтому out_channels = in_channels = channels, groups = channels
+    gaussian_kernel = gaussian_kernel.view(1, 1, kernel_size, kernel_size)
+    gaussian_kernel = gaussian_kernel.repeat(channels, 1, 1, 1)  # (channels, 1, H, W)
+
+    return gaussian_kernel
+
+
+# --- Новая функция calculate_perceptual_mask_torch ---
+def calculate_perceptual_mask_torch(
+        ip_tensor: torch.Tensor,
+        device: torch.device,
+        fn: int = -1,
+        sobel_kernel_x: Optional[torch.Tensor] = None,  # Для кэширования ядер
+        sobel_kernel_y: Optional[torch.Tensor] = None,
+        gaussian_kernel_conv: Optional[torch.Tensor] = None,
+        gaussian_ksize: int = 11,  # Размер ядра Гаусса
+        gaussian_sigma: float = 5.0,  # Сигма Гаусса
+        lambda_param: float = LAMBDA_PARAM  # Используем глобальную LAMBDA_PARAM
+) -> torch.Tensor:
+    """
+    Вычисляет перцептуальную маску для 2D тензора (один канал изображения) на GPU.
+    ip_tensor должен быть 2D тензором (H, W) или 4D (B, C, H, W) с B=1, C=1.
+    Значения в ip_tensor предполагаются в диапазоне [0, 1].
+    """
+    if not isinstance(ip_tensor, torch.Tensor):
+        logging.error(f"Mask error F{fn}: Input is not a tensor.")
+        # Возвращаем единичный тензор подходящей формы, если ip_tensor не тензор, или его форма неизвестна
+        # Для безопасности, лучше чтобы вызывающий код гарантировал корректный ip_tensor
+        raise ValueError("Input to calculate_perceptual_mask_torch must be a PyTorch tensor.")
+
+    original_ndim = ip_tensor.ndim
+    if original_ndim == 2:
+        # (H, W) -> (1, 1, H, W) для conv2d
+        tensor_4d = ip_tensor.unsqueeze(0).unsqueeze(0)
+    elif original_ndim == 4 and ip_tensor.shape[0] == 1 and ip_tensor.shape[1] == 1:
+        tensor_4d = ip_tensor
+    else:
+        logging.error(f"Mask error F{fn}: Input tensor must be 2D (H,W) or 4D (1,1,H,W), got {ip_tensor.shape}")
+        # Возвращаем единичный тензор, пытаясь сохранить исходную форму если возможно
         return torch.ones_like(ip_tensor, device=device)
+
+    if not torch.is_floating_point(tensor_4d):
+        logging.warning(f"Mask warning F{fn}: Input tensor is not float, converting to float32.")
+        tensor_4d = tensor_4d.to(dtype=torch.float32)
+
+    if not torch.all(torch.isfinite(tensor_4d)):
+        logging.warning(
+            f"Mask error F{fn}: Input tensor contains NaN/inf. Clipping might be needed or result unreliable.")
+        # Можно добавить .clamp_(0, 1) здесь, если значения могут выходить за пределы
+        # tensor_4d = torch.nan_to_num(tensor_4d, nan=0.0, posinf=1.0, neginf=0.0) # Замена нечисловых
+
     try:
-        pf = ip_tensor.cpu().numpy().astype(np.float32)
-        if not np.all(np.isfinite(pf)):
-            logging.warning(f"Mask error F{fn}: Input tensor contains NaN/inf.")
-            return torch.ones_like(ip_tensor, device=device)
+        # --- 1. Градиенты Собеля ---
+        if sobel_kernel_x is None or sobel_kernel_y is None:  # Создаем ядра, если не переданы (для кэширования)
+            kernel_gx, kernel_gy = get_sobel_kernels(device, tensor_4d.dtype)
+        else:
+            kernel_gx, kernel_gy = sobel_kernel_x.to(device, tensor_4d.dtype), sobel_kernel_y.to(device,
+                                                                                                 tensor_4d.dtype)
 
-        gx = cv2.Sobel(pf, cv2.CV_32F, 1, 0, ksize=3);
-        gy = cv2.Sobel(pf, cv2.CV_32F, 0, 1, ksize=3)
+        # padding='same' сохраняет размер изображения
+        # F.conv2d ожидает input (B, C_in, H_in, W_in) и weight (C_out, C_in/groups, H_k, W_k)
+        grad_x = F.conv2d(tensor_4d, kernel_gx, padding='same')
+        grad_y = F.conv2d(tensor_4d, kernel_gy, padding='same')
 
-        if not np.all(np.isfinite(gx)) or not np.all(np.isfinite(gy)):
-            logging.warning(f"Mask error F{fn}: Sobel result contains NaN/inf.")
-            return torch.ones_like(ip_tensor, device=device)
+        if not torch.all(torch.isfinite(grad_x)) or not torch.all(torch.isfinite(grad_y)):
+            logging.warning(f"Mask warning F{fn}: Sobel gradients contain NaN/inf.")
+            # Заменяем NaN/Inf на 0, чтобы не прерывать вычисления
+            grad_x = torch.nan_to_num(grad_x, nan=0.0)
+            grad_y = torch.nan_to_num(grad_y, nan=0.0)
 
-        gm = np.sqrt(gx ** 2 + gy ** 2)
-        ks = (11, 11);
-        s = 5
-        lm = cv2.GaussianBlur(pf, ks, s);
-        lms = cv2.GaussianBlur(pf ** 2, ks, s)
-        if not np.all(np.isfinite(lm)) or not np.all(np.isfinite(lms)):
-            logging.warning(f"Mask error F{fn}: GaussianBlur result contains NaN/inf.")
-            return torch.ones_like(ip_tensor, device=device)
+        # Величина градиента
+        gradient_magnitude = torch.sqrt(grad_x ** 2 + grad_y ** 2 + 1e-12)  # + eps для стабильности sqrt
 
-        lv = np.sqrt(np.maximum(lms - lm ** 2, 0))
-        if not np.all(np.isfinite(lv)):
-            logging.warning(f"Mask error F{fn}: Local variance result contains NaN/inf.")
-            lv = np.nan_to_num(lv, nan=0.0, posinf=0.0, neginf=0.0)
+        # --- 2. Локальная дисперсия с Гауссовым размытием ---
+        # E[X^2] - (E[X])^2
+        if gaussian_kernel_conv is None:  # Создаем ядро, если не передано
+            # Для Гаусса channels=1, так как мы работаем с одноканальным изображением яркости
+            gaussian_kernel_conv = get_gaussian_kernel(kernel_size=gaussian_ksize, sigma=gaussian_sigma, channels=1,
+                                                       device=device, dtype=tensor_4d.dtype)
+        else:
+            gaussian_kernel_conv = gaussian_kernel_conv.to(device, tensor_4d.dtype)
 
-        cm = np.maximum(gm, lv)
-        eps = 1e-9;
-        mc = np.max(cm)
+        # padding='same' для Гаусса
+        # F.conv2d с groups=channels если ядро имеет channels=1 и мы хотим применить его к каждому каналу независимо.
+        # Но здесь у нас 1 входной канал для tensor_4d (яркость), и ядро Гаусса тоже для 1 канала.
+        local_mean = F.conv2d(tensor_4d, gaussian_kernel_conv, padding='same')
+        local_mean_sq = F.conv2d(tensor_4d ** 2, gaussian_kernel_conv, padding='same')
 
-        if not np.isfinite(mc):
-            logging.warning(f"Mask error F{fn}: Max complexity (mc) is not finite.")
-            return torch.ones_like(ip_tensor, device=device)
+        if not torch.all(torch.isfinite(local_mean)) or not torch.all(torch.isfinite(local_mean_sq)):
+            logging.warning(f"Mask warning F{fn}: Gaussian blur results contain NaN/inf.")
+            local_mean = torch.nan_to_num(local_mean, nan=0.0)
+            local_mean_sq = torch.nan_to_num(local_mean_sq, nan=0.0)
 
-        mn = cm / (mc + eps) if mc > eps else np.zeros_like(cm)
-        mask_np = np.clip(mn, 0., 1.).astype(np.float32)
+        local_variance = local_mean_sq - local_mean ** 2
+        # Защита от отрицательных значений из-за ошибок округления и от NaN в sqrt
+        local_std_dev = torch.sqrt(torch.relu(local_variance) + 1e-12)
 
-        mask_tensor = torch.from_numpy(mask_np).to(device)
-        # logging.debug(f"Mask F{fn}: range {torch.min(mask_tensor):.2f}-{torch.max(mask_tensor):.2f}")
-        return mask_tensor
-    except cv2.error as cv_err:
-        logging.error(f"Mask OpenCV error F{fn}: {cv_err}", exc_info=True)
-        return torch.ones_like(ip_tensor, device=device)
+        # --- 3. Комбинированная сложность ---
+        complexity_map = torch.maximum(gradient_magnitude, local_std_dev)
+
+        # --- 4. Нормализация маски ---
+        min_complexity = torch.min(complexity_map)  # Можно использовать torch.amin(complexity_map)
+        max_complexity = torch.max(complexity_map)  # Можно использовать torch.amax(complexity_map)
+
+        # Нормализация в [0, 1]
+        # Защита от деления на ноль, если max_complexity == min_complexity (плоское изображение)
+        if (max_complexity - min_complexity) < 1e-9:
+            normalized_mask = torch.zeros_like(complexity_map, device=device)
+        else:
+            normalized_mask = (complexity_map - min_complexity) / (max_complexity - min_complexity)
+
+        # Финальное клиппирование (хотя после нормализации должно быть в [0,1])
+        final_mask = torch.clip(normalized_mask, 0., 1.)
+
+        # Возвращаем маску в той же размерности, что и исходный ip_tensor (если он был 2D)
+        if original_ndim == 2:
+            return final_mask.squeeze(0).squeeze(0)  # (1,1,H,W) -> (H,W)
+        else:  # Если исходный был 4D (1,1,H,W), возвращаем так же
+            return final_mask
+
     except Exception as e:
-        logging.error(f"Mask general error F{fn}: {e}", exc_info=True)
-        return torch.ones_like(ip_tensor, device=device)
+        logging.error(f"Perceptual mask (PyTorch) general error F{fn}: {e}", exc_info=True)
+        # Возвращаем единичную маску той же формы, что и входной тензор
+        return torch.ones_like(ip_tensor.view_as(tensor_4d) if original_ndim == 2 else ip_tensor, device=device)
 
 
 def add_ecc(data_bits: np.ndarray, bch_code: Optional[galois.BCH]) -> Optional[np.ndarray]:
@@ -2028,231 +2252,393 @@ def embed_frame_pair(
         frame1_bgr: np.ndarray, frame2_bgr: np.ndarray, bits: List[int],
         selected_ring_indices: List[int], n_rings: int, frame_number: int,
         use_perceptual_masking: bool, embed_component: int,
-        # --- Аргументы PyTorch ---
         device: torch.device,
-        dtcwt_fwd: 'DTCWTForward',
-        dtcwt_inv: 'DTCWTInverse'
+        dtcwt_fwd: 'DTCWTForward',  # Указываем тип для подсказок, если DTCWTForward определен
+        dtcwt_inv: 'DTCWTInverse'  # Указываем тип для подсказок, если DTCWTInverse определен
 ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """
-    Встраивает биты (PyTorch DCT/SVD, улучшенная модификация, ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ).
-    Полная версия с ИСПРАВЛЕННЫМ применением дельты.
+    Встраивает биты (PyTorch DCT/SVD), используя GPU для адаптивной альфы.
+    Логика применения дельты соответствует СТАБИЛЬНОЙ ВЕРСИИ (+=).
     """
     pair_index = frame_number // 2
     prefix_base = f"[P:{pair_index}]"
 
     if not PYTORCH_WAVELETS_AVAILABLE or not TORCH_DCT_AVAILABLE:
-         logging.error(f"{prefix_base} Отсутствуют PyTorch Wavelets или DCT!")
-         return None, None
+        logging.error(f"{prefix_base} Отсутствуют PyTorch Wavelets или DCT!")
+        return None, None
 
     min_len_bits_rings = min(len(bits), len(selected_ring_indices))
     if len(bits) != len(selected_ring_indices):
-        logging.warning(f"{prefix_base} Mismatch bits/rings: {len(bits)} vs {len(selected_ring_indices)}. Using min len {min_len_bits_rings}.")
-    if min_len_bits_rings == 0:
-        logging.debug(f"{prefix_base} No bits/rings to process.")
-        return frame1_bgr, frame2_bgr
+        logging.warning(
+            f"{prefix_base} Mismatch bits/rings: {len(bits)} vs {len(selected_ring_indices)}. Using min len {min_len_bits_rings}.")
+
+    if min_len_bits_rings == 0:  # Если нет бит для встраивания или колец для использования
+        logging.debug(f"{prefix_base} No bits/rings to process. Returning original frames.")
+        return frame1_bgr, frame2_bgr  # Возвращаем исходные кадры
+
     bits_to_embed = bits[:min_len_bits_rings]
     rings_to_process = selected_ring_indices[:min_len_bits_rings]
 
-    logging.debug(f"{prefix_base} --- Starting Embedding Pair (PyTorch v2 Fixed Delta Apply) for {len(bits_to_embed)} bits ---")
+    logging.debug(f"{prefix_base} --- Starting Embedding Pair (PyTorch GPU Alpha) for {len(bits_to_embed)} bits ---")
     try:
-        # 1. Преобразование в Тензоры
+        # 1. Преобразование в Тензоры YCrCb и извлечение компонента
         f1_ycrcb_np = cv2.cvtColor(frame1_bgr, cv2.COLOR_BGR2YCrCb)
         f2_ycrcb_np = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2YCrCb)
-        comp1_np = f1_ycrcb_np[:, :, embed_component].copy().astype(np.float32) / 255.0
-        comp2_np = f2_ycrcb_np[:, :, embed_component].copy().astype(np.float32) / 255.0
-        comp1_tensor = torch.from_numpy(comp1_np).to(device=device)
-        comp2_tensor = torch.from_numpy(comp2_np).to(device=device)
+
+        # Нормализуем компонент [0, 255] в [0, 1] и переводим в тензор
+        comp1_np_float = f1_ycrcb_np[:, :, embed_component].astype(np.float32) / 255.0
+        comp2_np_float = f2_ycrcb_np[:, :, embed_component].astype(np.float32) / 255.0
+
+        comp1_tensor = torch.from_numpy(comp1_np_float).to(device=device)
+        comp2_tensor = torch.from_numpy(comp2_np_float).to(device=device)
         target_shape_hw = (frame1_bgr.shape[0], frame1_bgr.shape[1])
 
         # 2. Прямое DTCWT
         Yl_t, Yh_t = dtcwt_pytorch_forward(comp1_tensor, dtcwt_fwd, device, frame_number)
         Yl_t1, Yh_t1 = dtcwt_pytorch_forward(comp2_tensor, dtcwt_fwd, device, frame_number + 1)
-        if Yl_t is None or Yh_t is None or Yl_t1 is None or Yh_t1 is None: return None, None
+
+        if Yl_t is None or Yh_t is None or Yl_t1 is None or Yh_t1 is None:
+            logging.error(f"{prefix_base} DTCWT forward failed.")
+            return None, None
+
+        # Убираем batch/channel измерения, если они есть (должны быть (1,1,H,W) -> (H,W))
         if Yl_t.dim() > 2: Yl_t = Yl_t.squeeze(0).squeeze(0)
         if Yl_t1.dim() > 2: Yl_t1 = Yl_t1.squeeze(0).squeeze(0)
 
         # 3. Подготовка к модификации
+        # ring_coords_t и ring_coords_t1 теперь должны быть списками тензоров координат,
+        # полученными из GPU-версии ring_division
         ring_coords_t = ring_division(Yl_t, n_rings, frame_number)
         ring_coords_t1 = ring_division(Yl_t1, n_rings, frame_number + 1)
-        if ring_coords_t is None or ring_coords_t1 is None: return None, None
-        perceptual_mask_tensor = calculate_perceptual_mask(comp1_tensor, device, frame_number)
-        if perceptual_mask_tensor is None: perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)
-        if perceptual_mask_tensor.shape != Yl_t.shape:
-             try: perceptual_mask_tensor = F.interpolate(...) # ваш код интерполяции
-             except Exception as e_interp: logging.error(...); perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)
+
+        if ring_coords_t is None or ring_coords_t1 is None:
+            logging.error(f"{prefix_base} Ring division returned None.")
+            return None, None
+
+        if use_perceptual_masking:
+            perceptual_mask_tensor = calculate_perceptual_mask_torch(
+                comp1_tensor,  # Передаем исходный компонент (до DTCWT) для маски
+                device=device,
+                fn=frame_number
+                # Ядра будут создаваться внутри calculate_perceptual_mask_torch
+            )
+            # calculate_perceptual_mask_torch должна вернуть тензор, который уже будет
+            # иметь ту же форму, что и comp1_tensor (H,W).
+            # Нам нужна маска с размерами Yl_t (LL-поддиапазона).
+            # Если Yl_t имеет другие размеры, чем comp1_tensor, маску нужно ресайзить.
+            if perceptual_mask_tensor.shape != Yl_t.shape:
+                logging.warning(
+                    f"{prefix_base} Perceptual mask shape {perceptual_mask_tensor.shape} (from comp1_tensor) != Yl_t shape {Yl_t.shape}. Resizing mask.")
+                try:
+                    perceptual_mask_tensor = F.interpolate(
+                        perceptual_mask_tensor.unsqueeze(0).unsqueeze(0),  # (H,W) -> (1,1,H,W)
+                        size=Yl_t.shape,  # Целевой размер (H_yl, W_yl)
+                        mode='bilinear',
+                        align_corners=False
+                    ).squeeze(0).squeeze(0)  # (1,1,H_yl,W_yl) -> (H_yl,W_yl)
+                except Exception as e_interp_mask:
+                    logging.error(
+                        f"{prefix_base} Failed to interpolate perceptual mask to Yl_t shape: {e_interp_mask}. Using ones mask.")
+                    perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)
+        else:
+            perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)  # Единичная маска, если не используется
 
         modifications_count = 0
-        Yl_t_mod = Yl_t.clone(); Yl_t1_mod = Yl_t1.clone()
+        Yl_t_mod = Yl_t.clone()
+        Yl_t1_mod = Yl_t1.clone()
 
-        # --- Цикл по кольцам ---
-        logging.debug(f"{prefix_base} --- Start Ring Loop (Embedding {len(bits_to_embed)} bits) ---")
+        # --- Цикл по выбранным кольцам для встраивания бит ---
+        logging.debug(f"{prefix_base} --- Start Ring Loop (GPU Alpha, Embedding {len(bits_to_embed)} bits) ---")
         for ring_idx, bit_to_embed in zip(rings_to_process, bits_to_embed):
             prefix = f"[P:{pair_index} R:{ring_idx}]"
             logging.debug(f"{prefix} ------- Processing bit {bit_to_embed} -------")
 
-            if not (0 <= ring_idx < n_rings and ring_idx < len(ring_coords_t) and ring_idx < len(ring_coords_t1)): continue
-            coords1_tensor = ring_coords_t[ring_idx]; coords2_tensor = ring_coords_t1[ring_idx]
-            if coords1_tensor is None or coords2_tensor is None or coords1_tensor.shape[0] < 10 or coords2_tensor.shape[0] < 10: continue
+            # Проверка валидности индекса кольца и наличия координат
+            if not (0 <= ring_idx < n_rings and \
+                    ring_idx < len(ring_coords_t) and ring_coords_t[ring_idx] is not None and \
+                    ring_idx < len(ring_coords_t1) and ring_coords_t1[ring_idx] is not None):
+                logging.warning(f"{prefix} Invalid ring_idx {ring_idx} or missing coordinates. Skipping.")
+                continue
+
+            coords1_tensor = ring_coords_t[ring_idx]
+            coords2_tensor = ring_coords_t1[ring_idx]
+
+            if coords1_tensor.shape[0] < 10 or coords2_tensor.shape[0] < 10:  # Минимальное количество пикселей в кольце
+                logging.debug(
+                    f"{prefix} Ring too small (coords1: {coords1_tensor.shape[0]}, coords2: {coords2_tensor.shape[0]}). Skipping.")
+                continue
 
             try:
+                # Извлечение координат и значений пикселей из тензоров
                 rows1, cols1 = coords1_tensor[:, 0], coords1_tensor[:, 1]
                 rows2, cols2 = coords2_tensor[:, 0], coords2_tensor[:, 1]
+
+                # v1_tensor и v2_tensor - это тензоры значений пикселей из КОПИЙ Yl_t_mod и Yl_t1_mod
+                # Используем .float() для гарантии типа перед DCT/SVD
                 v1_tensor = Yl_t_mod[rows1, cols1].float()
                 v2_tensor = Yl_t1_mod[rows2, cols2].float()
+
                 min_s = min(v1_tensor.numel(), v2_tensor.numel())
-                if min_s == 0: continue
+                if min_s == 0:
+                    logging.debug(f"{prefix} Empty ring after coordinate extraction for v1 or v2. Skipping.");
+                    continue
+
+                # Если размеры векторов пикселей не совпадают (маловероятно с GPU ring_division, но для безопасности)
                 if v1_tensor.numel() != v2_tensor.numel():
-                    v1_tensor = v1_tensor[:min_s]; v2_tensor = v2_tensor[:min_s]
-                    rows1, cols1 = rows1[:min_s], cols1[:min_s]; rows2, cols2 = rows2[:min_s], cols2[:min_s]
+                    v1_tensor = v1_tensor[:min_s]
+                    v2_tensor = v2_tensor[:min_s]
+                    # Важно: если обрезали, нужно также обновить rows1, cols1, rows2, cols2 для корректной записи обратно
+                    rows1_actual, cols1_actual = rows1[:min_s], cols1[:min_s]
+                    rows2_actual, cols2_actual = rows2[:min_s], cols2[:min_s]
+                else:
+                    rows1_actual, cols1_actual = rows1, cols1
+                    rows2_actual, cols2_actual = rows2, cols2
 
-                # logging.debug(f"{prefix} v1 stats...")
-                # logging.debug(f"{prefix} v2 stats...")
+                # Вычисляем адаптивную альфу с помощью новой GPU-версии функции
+                # v1_tensor (значения из первого кадра пары) используется для вычисления альфы
+                alpha_t = compute_adaptive_alpha_entropy_torch(v1_tensor, ring_idx,
+                                                               frame_number)  # alpha_t теперь тензор
 
-                alpha_float = compute_adaptive_alpha_entropy(v1_tensor.cpu().numpy(), ring_idx, frame_number)
-                alpha_t = torch.tensor(alpha_float, device=device, dtype=v1_tensor.dtype)
-                inv_a = 1.0 / (alpha_t + 1e-12)
-                # logging.debug(f"{prefix} Adaptive alpha...")
+                # inv_a также будет тензором
+                inv_a = torch.tensor(1.0, device=device, dtype=alpha_t.dtype) / (alpha_t + 1e-12)
+                logging.debug(f"{prefix} PyTorch Adaptive alpha={alpha_t.item():.4f}")
 
+                # DCT
                 d1_tensor = dct1d_torch(v1_tensor)
                 d2_tensor = dct1d_torch(v2_tensor)
-                if not torch.isfinite(d1_tensor).all() or not torch.isfinite(d2_tensor).all(): continue
-                # logging.debug(f"{prefix} DCT done...")
+                if not torch.isfinite(d1_tensor).all() or not torch.isfinite(d2_tensor).all():
+                    logging.warning(f"{prefix} Non-finite DCT result. Skipping.");
+                    continue
 
-                U1, S1_vec, Vh1 = torch.linalg.svd(d1_tensor.unsqueeze(-1), full_matrices=False)
-                U2, S2_vec, Vh2 = torch.linalg.svd(d2_tensor.unsqueeze(-1), full_matrices=False)
-                if U1 is None or S1_vec is None or Vh1 is None or U2 is None or S2_vec is None or Vh2 is None: continue
-                if S1_vec.numel() == 0 or S2_vec.numel() == 0: continue
-                s1 = S1_vec[0]; s2 = S2_vec[0]
-                if not torch.isfinite(s1) or not torch.isfinite(s2): continue
-                # logging.debug(f"{prefix} SVD done...")
+                # SVD (U, S, Vh.T)
+                U1, S1_vec, Vh1_t = svd_torch(d1_tensor)
+                U2, S2_vec, Vh2_t = svd_torch(d2_tensor)
 
-                eps = torch.tensor(1e-12, device=device, dtype=s1.dtype)
-                s2_safe = s2 + eps if torch.abs(s2) < eps else s2
-                original_ratio = s1 / s2_safe
-                # logging.debug(f"{prefix} Original Ratio...")
+                if U1 is None or S1_vec is None or Vh1_t is None or \
+                        U2 is None or S2_vec is None or Vh2_t is None:
+                    logging.warning(f"{prefix} SVD failed (returned None). Skipping.");
+                    continue
+                if S1_vec.numel() == 0 or S2_vec.numel() == 0:  # Проверка, что сингулярные числа не пусты
+                    logging.warning(f"{prefix} Empty singular values vector from SVD. Skipping.");
+                    continue
 
-                ns1, ns2 = s1.clone(), s2.clone()
+                s1 = S1_vec[0]  # s1, s2 - скалярные тензоры (главные сингулярные числа)
+                s2 = S2_vec[0]
+                if not torch.isfinite(s1) or not torch.isfinite(s2):  # Проверка на NaN/Inf
+                    logging.warning(
+                        f"{prefix} Non-finite singular values s1 ({s1.item()}) or s2 ({s2.item()}). Skipping.");
+                    continue
+
+                eps = torch.tensor(1e-12, device=device, dtype=s1.dtype)  # Эпсилон для защиты от деления на ноль
+                s2_safe = s2 + eps if torch.abs(s2) < eps else s2  # s2_safe никогда не будет 0
+                original_ratio = s1 / s2_safe  # original_ratio теперь тензор
+
+                ns1, ns2 = s1.clone(), s2.clone()  # Клонируем тензоры s1, s2
                 modified = False
-                action = "No change needed"
-                current_bit = 0 if original_ratio >= 1.0 else 1
-                modify_needed = (current_bit != bit_to_embed)
-                strengthen_needed = False
-                target_ratio = original_ratio
 
-                if not modify_needed:
-                    if bit_to_embed == 0 and original_ratio < alpha_t: strengthen_needed = True; action = "Strengthening bit 0"
-                    elif bit_to_embed == 1 and original_ratio >= inv_a: strengthen_needed = True; action = "Strengthening bit 1"
-                else: action = f"Modifying {current_bit}->{bit_to_embed}"
+                one_tensor = torch.tensor(1.0, device=device, dtype=s1.dtype)
+                action_log_message = "No change needed"
 
-                if modify_needed or strengthen_needed:
+                # Определяем текущий встроенный бит (0 или 1) на основе original_ratio
+                current_bit_tensor = torch.where(original_ratio >= one_tensor,
+                                                 torch.tensor(0, device=device, dtype=torch.long),
+                                                 torch.tensor(1, device=device, dtype=torch.long))
+
+                bit_to_embed_tensor = torch.tensor(bit_to_embed, device=device, dtype=torch.long)
+
+                modify_needed_tensor = (current_bit_tensor != bit_to_embed_tensor)
+                strengthen_needed_tensor = torch.tensor(False, device=device)  # Инициализируем как False тензор
+                target_ratio_tensor = original_ratio.clone()
+
+                if not modify_needed_tensor.item():  # Если .item() == False, т.е. биты совпадают
+                    # Проверяем, нужно ли усиление
+                    condition_strengthen0 = (bit_to_embed_tensor == 0) & (original_ratio < alpha_t)
+                    condition_strengthen1 = (bit_to_embed_tensor == 1) & (
+                                original_ratio > inv_a)
+                    if condition_strengthen0.item():
+                        strengthen_needed_tensor = torch.tensor(True, device=device)
+                        action_log_message = f"Strengthening bit 0 (orig_ratio={original_ratio.item():.4f}, alpha_t={alpha_t.item():.4f})"
+                    elif condition_strengthen1.item():  # Условие для усиления бита 1
+                        strengthen_needed_tensor = torch.tensor(True, device=device)
+                        action_log_message = f"Strengthening bit 1 (orig_ratio={original_ratio.item():.4f}, inv_a={inv_a.item():.4f})"
+                else:  # modify_needed_tensor is True
+                    action_log_message = f"Modifying bit {current_bit_tensor.item()} -> {bit_to_embed_tensor.item()} (tensor)"
+
+                if modify_needed_tensor.item() or strengthen_needed_tensor.item():
                     modified = True
-                    energy = torch.sqrt(s1**2 + s2**2); energy = energy + eps if energy < eps else energy
-                    if bit_to_embed == 0: target_ratio = alpha_t
-                    else: target_ratio = inv_a
-                    denominator = torch.sqrt(target_ratio**2 + 1.0 + eps)
-                    ns1 = energy * target_ratio / denominator
-                    ns2 = energy / denominator
-                    if not torch.isfinite(ns1) or not torch.isfinite(ns2): modified = False
+                    energy_sq = s1 ** 2 + s2 ** 2
+                    energy = torch.sqrt(energy_sq + eps)  # Добавляем eps для стабильности sqrt, если s1 и s2 оба 0
 
-                logging.info(f"{prefix} ACTION: {action}.")
+                    if bit_to_embed_tensor == 0:
+                        target_ratio_tensor = alpha_t
+                    else:  # bit_to_embed_tensor == 1
+                        target_ratio_tensor = inv_a
+
+                    denominator_sq = target_ratio_tensor ** 2 + one_tensor
+                    denominator = torch.sqrt(denominator_sq + eps)
+
+                    ns1 = energy * target_ratio_tensor / denominator
+                    ns2 = energy / denominator
+
+                    if not (torch.isfinite(ns1) and torch.isfinite(ns2)):
+                        logging.warning(
+                            f"{prefix} Non-finite ns1 ({ns1.item()}) or ns2 ({ns2.item()}) after calculation. Modification skipped.")
+                        modified = False
+
+                logging.info(f"{prefix} ACTION: {action_log_message}.")
 
                 if modified:
                     modifications_count += 1
-                    # logging.debug(f"{prefix}    Target Ratio...")
-                    # logging.debug(f"{prefix}    New Ratio Check...")
-                    # logging.debug(f"{prefix}    New s1..., s2...")
 
-                    ns1_diag = torch.diag(ns1.unsqueeze(0))
-                    ns2_diag = torch.diag(ns2.unsqueeze(0))
-                    d1m_tensor = torch.matmul(U1, torch.matmul(ns1_diag, Vh1)).squeeze(-1)
-                    d2m_tensor = torch.matmul(U2, torch.matmul(ns2_diag, Vh2)).squeeze(-1)
+                    # Реконструкция DCT коэффициентов с новыми сингулярными числами
+                    # S_diag ожидает 1D вектор для диагонали, ns1/ns2 уже скалярные тензоры
+                    # unsqueeze(0) делает их [1], diag создаст матрицу [1,1]
+                    S1_mod_diag = torch.diag(ns1.unsqueeze(0))
+                    S2_mod_diag = torch.diag(ns2.unsqueeze(0))
+
+                    d1m_tensor = torch.matmul(U1, torch.matmul(S1_mod_diag, Vh1_t)).squeeze(
+                        -1)  # squeeze в конце, т.к. U, S_diag, Vh.T -> (N,1)
+                    d2m_tensor = torch.matmul(U2, torch.matmul(S2_mod_diag, Vh2_t)).squeeze(-1)
+
+                    # Обратное DCT
                     v1m_tensor = idct1d_torch(d1m_tensor)
                     v2m_tensor = idct1d_torch(d2m_tensor)
 
-                    if not torch.isfinite(v1m_tensor).all() or not torch.isfinite(v2m_tensor).all(): continue
-                    if v1m_tensor.shape != v1_tensor.shape or v2m_tensor.shape != v2_tensor.shape: continue
+                    if not torch.isfinite(v1m_tensor).all() or not torch.isfinite(v2m_tensor).all():
+                        logging.warning(f"{prefix} Non-finite v1m/v2m after IDCT. Skipping update.");
+                        continue
+                    if v1m_tensor.shape != v1_tensor.shape or v2m_tensor.shape != v2_tensor.shape:  # Проверка формы
+                        logging.warning(f"{prefix} Shape mismatch for v1m/v2m after IDCT. Skipping update.");
+                        continue
 
+                    # Вычисляем дельту (разницу)
                     delta1_pt = v1m_tensor - v1_tensor
                     delta2_pt = v2m_tensor - v2_tensor
-                    logging.debug(f"{prefix} PT Delta1 Stats: mean={delta1_pt.mean():.6e}, std={delta1_pt.std():.6e}")
-                    logging.debug(f"{prefix} PT Delta2 Stats: mean={delta2_pt.mean():.6e}, std={delta2_pt.std():.6e}")
 
-                    # --- ЛОГ ДО ПРИМЕНЕНИЯ ДЕЛЬТЫ ---
-                    yl_sub_before = Yl_t_mod[rows1, cols1]
-                    logging.debug(f"{prefix} Yl_t_mod[ring] BEFORE apply: mean={yl_sub_before.mean():.6e}, std={yl_sub_before.std():.6e}")
-                    yl_sub2_before = Yl_t1_mod[rows2, cols2]
-                    logging.debug(f"{prefix} Yl_t1_mod[ring] BEFORE apply: mean={yl_sub2_before.mean():.6e}, std={yl_sub2_before.std():.6e}")
-                    # ----------------------------------
+                    # Применяем перцептуальную маску к дельте
+                    mf1 = torch.ones_like(delta1_pt, device=device)
+                    mf2 = torch.ones_like(delta2_pt, device=device)
 
-                    mf1 = torch.ones_like(delta1_pt); mf2 = torch.ones_like(delta2_pt)
                     if use_perceptual_masking and perceptual_mask_tensor is not None:
                         try:
-                            mv1 = perceptual_mask_tensor[rows1, cols1]; mv2 = perceptual_mask_tensor[rows2, cols2]
-                            lambda_t = torch.tensor(LAMBDA_PARAM, device=device, dtype=mf1.dtype); one_minus_lambda_t = 1.0 - lambda_t
-                            mf1.mul_(lambda_t + one_minus_lambda_t * mv1); mf2.mul_(lambda_t + one_minus_lambda_t * mv2)
-                            # logging.debug(f"{prefix} Mask factors applied...")
-                        except Exception as mask_err: logging.warning(f"{prefix} Mask apply error: {mask_err}")
+                            # Убеждаемся, что индексы не выходят за пределы маски
+                            # perceptual_mask_tensor должен иметь те же размеры, что и Yl_t
+                            # rowsX_actual и colsX_actual уже должны быть корректными по длине
+                            if perceptual_mask_tensor.shape[0] > rows1_actual.max().item() and \
+                                    perceptual_mask_tensor.shape[1] > cols1_actual.max().item():
+                                mv1 = perceptual_mask_tensor[rows1_actual, cols1_actual]
+                            else:
+                                logging.warning(
+                                    f"{prefix} Mask shape mismatch or index out of bounds for frame 1 (mask: {perceptual_mask_tensor.shape}, max_row: {rows1_actual.max().item()}, max_col: {cols1_actual.max().item()}). Using ones for mf1.")
+                                mv1 = torch.ones_like(rows1_actual, dtype=delta1_pt.dtype, device=device)
 
-                    Yl_t_mod[rows1, cols1] = yl_sub_before + delta1_pt * mf1 # Используем значения ДО, а не текущие
-                    Yl_t1_mod[rows2, cols2] = yl_sub2_before + delta2_pt * mf2
+                            if perceptual_mask_tensor.shape[0] > rows2_actual.max().item() and \
+                                    perceptual_mask_tensor.shape[1] > cols2_actual.max().item():
+                                mv2 = perceptual_mask_tensor[rows2_actual, cols2_actual]
+                            else:
+                                logging.warning(
+                                    f"{prefix} Mask shape mismatch or index out of bounds for frame 2. Using ones for mf2.")
+                                mv2 = torch.ones_like(rows2_actual, dtype=delta2_pt.dtype, device=device)
 
-                    yl_sub_after = Yl_t_mod[rows1, cols1]
-                    logging.debug(f"{prefix} Yl_t_mod[ring] AFTER apply: mean={yl_sub_after.mean():.6e}, std={yl_sub_after.std():.6e}")
-                    yl_sub2_after = Yl_t1_mod[rows2, cols2]
-                    logging.debug(f"{prefix} Yl_t1_mod[ring] AFTER apply: mean={yl_sub2_after.mean():.6e}, std={yl_sub2_after.std():.6e}")
-                    logging.debug(f"{prefix} Deltas applied to Yl_mod tensors using assignment.")
+                            lambda_t = torch.tensor(LAMBDA_PARAM, device=device, dtype=mf1.dtype)
+                            one_minus_lambda_t = torch.tensor(1.0, device=device, dtype=mf1.dtype) - lambda_t
+                            mf1 = lambda_t + one_minus_lambda_t * mv1  # Не mf1.mul_, а присваивание нового значения
+                            mf2 = lambda_t + one_minus_lambda_t * mv2
+                        except IndexError as mask_idx_err:
+                            logging.warning(f"{prefix} Mask apply IndexError: {mask_idx_err}. Using unmasked delta.")
+                        except Exception as mask_err:
+                            logging.warning(f"{prefix} Mask apply general error: {mask_err}. Using unmasked delta.")
 
-            except Exception as e:
-                logging.error(f"{prefix} Error in ring loop: {e}", exc_info=True); continue
-            logging.debug(f"{prefix} ------- Finished Processing Ring -------")
-        # --- Конец цикла по кольцам ---
-        logging.debug(f"{prefix_base} --- End Ring Loop ({modifications_count} modifications) ---")
+                    # Применение модифицированной дельты к Yl_t_mod и Yl_t1_mod
+                    # Используем += как в СТАБИЛЬНОЙ версии
+                    Yl_t_mod[rows1_actual, cols1_actual] += delta1_pt * mf1
+                    Yl_t1_mod[rows2_actual, cols2_actual] += delta2_pt * mf2
+
+            except Exception as e_ring_loop:
+                logging.error(f"{prefix} Error in ring loop (GPU Alpha): {e_ring_loop}", exc_info=True)
+                continue  # Переход к следующему кольцу/биту
+
+        logging.debug(f"{prefix_base} --- End Ring Loop (GPU Alpha, {modifications_count} modifications) ---")
 
         # 5. Обратное DTCWT
-        if Yl_t_mod.dim() == 2: Yl_t_mod = Yl_t_mod.unsqueeze(0).unsqueeze(0)
-        if Yl_t1_mod.dim() == 2: Yl_t1_mod = Yl_t1_mod.unsqueeze(0).unsqueeze(0)
-        c1m_np = dtcwt_pytorch_inverse(Yl_t_mod, Yh_t, dtcwt_inv, device, target_shape_hw, frame_number)
-        c2m_np = dtcwt_pytorch_inverse(Yl_t1_mod, Yh_t1, dtcwt_inv, device, target_shape_hw, frame_number + 1)
-        if c1m_np is None or c2m_np is None: return None, None
+        # Убедимся, что тензоры имеют правильную размерность (Batch, Channel, H, W) для IDTCWT
+        if Yl_t_mod.dim() == 2:
+            Yl_t_mod_final = Yl_t_mod.unsqueeze(0).unsqueeze(0)
+        elif Yl_t_mod.dim() == 4 and Yl_t_mod.shape[0] == 1 and Yl_t_mod.shape[1] == 1:
+            Yl_t_mod_final = Yl_t_mod
+        else:
+            logging.error(f"Unexpected Yl_t_mod shape: {Yl_t_mod.shape}"); return None, None
 
-        # --- ЛОГ СТАТИСТИКИ РЕКОНСТРУКЦИИ ПЕРЕД КВАНТОВАНИЕМ ---
-        logging.debug(f"{prefix_base} Reconstructed c1m_np stats: mean={np.mean(c1m_np):.6e}, std={np.std(c1m_np):.6e}, min={np.min(c1m_np):.6e}, max={np.max(c1m_np):.6e}")
-        logging.debug(f"{prefix_base} Reconstructed c2m_np stats: mean={np.mean(c2m_np):.6e}, std={np.std(c2m_np):.6e}, min={np.min(c2m_np):.6e}, max={np.max(c2m_np):.6e}")
-        logging.debug(f"{prefix_base} Original comp1_np stats: mean={np.mean(comp1_np):.6e}, std={np.std(comp1_np):.6e}")
-        # ------------------------------------------------------
+        if Yl_t1_mod.dim() == 2:
+            Yl_t1_mod_final = Yl_t1_mod.unsqueeze(0).unsqueeze(0)
+        elif Yl_t1_mod.dim() == 4 and Yl_t1_mod.shape[0] == 1 and Yl_t1_mod.shape[1] == 1:
+            Yl_t1_mod_final = Yl_t1_mod
+        else:
+            logging.error(f"Unexpected Yl_t1_mod shape: {Yl_t1_mod.shape}"); return None, None
+
+        c1m_np = dtcwt_pytorch_inverse(Yl_t_mod_final, Yh_t, dtcwt_inv, device, target_shape_hw, frame_number)
+        c2m_np = dtcwt_pytorch_inverse(Yl_t1_mod_final, Yh_t1, dtcwt_inv, device, target_shape_hw, frame_number + 1)
+
+        if c1m_np is None or c2m_np is None:
+            logging.error(f"{prefix_base} DTCWT inverse failed.")
+            return None, None
 
         # 6. Постобработка и сборка кадра
+        # Денормализация ([0,1] -> [0,255]), клиппинг и конвертация в uint8
         c1s_np = np.clip(c1m_np * 255.0, 0, 255).astype(np.uint8)
         c2s_np = np.clip(c2m_np * 255.0, 0, 255).astype(np.uint8)
-        if c1s_np.shape != target_shape_hw: c1s_np = cv2.resize(c1s_np, (target_shape_hw[1], target_shape_hw[0]), interpolation=cv2.INTER_LINEAR)
-        if c2s_np.shape != target_shape_hw: c2s_np = cv2.resize(c2s_np, (target_shape_hw[1], target_shape_hw[0]), interpolation=cv2.INTER_LINEAR)
-        f1_ycrcb_out_np = f1_ycrcb_np.copy(); f2_ycrcb_out_np = f2_ycrcb_np.copy()
-        f1_ycrcb_out_np[:, :, embed_component] = c1s_np; f2_ycrcb_out_np[:, :, embed_component] = c2s_np
-        f1m = cv2.cvtColor(f1_ycrcb_out_np, cv2.COLOR_YCrCb2BGR); f2m = cv2.cvtColor(f2_ycrcb_out_np, cv2.COLOR_YCrCb2BGR)
 
-        logging.debug(f"{prefix_base} Embed Pair Finished Successfully.")
+        # Ресайз, если форма не совпадает (маловероятно, если target_shape_hw правильно передана в IDTCWT)
+        if c1s_np.shape != target_shape_hw:
+            c1s_np = cv2.resize(c1s_np, (target_shape_hw[1], target_shape_hw[0]), interpolation=cv2.INTER_LINEAR)
+        if c2s_np.shape != target_shape_hw:
+            c2s_np = cv2.resize(c2s_np, (target_shape_hw[1], target_shape_hw[0]), interpolation=cv2.INTER_LINEAR)
+
+        # Копируем исходные YCrCb кадры и заменяем только обработанный компонент
+        f1_ycrcb_out_np = f1_ycrcb_np.copy()
+        f2_ycrcb_out_np = f2_ycrcb_np.copy()
+
+        f1_ycrcb_out_np[:, :, embed_component] = c1s_np
+        f2_ycrcb_out_np[:, :, embed_component] = c2s_np
+
+        # Конвертация обратно в BGR
+        f1m = cv2.cvtColor(f1_ycrcb_out_np, cv2.COLOR_YCrCb2BGR)
+        f2m = cv2.cvtColor(f2_ycrcb_out_np, cv2.COLOR_YCrCb2BGR)
+
+        logging.debug(f"{prefix_base} Embed Pair (GPU Alpha) Finished Successfully.")
         return f1m, f2m
 
-    except Exception as e:
-        logging.error(f"{prefix_base} Critical error in embed_frame_pair: {e}", exc_info=True)
-        if 'device' in locals() and device.type == 'cuda':
-            with torch.no_grad(): torch.cuda.empty_cache()
+    except Exception as e_embed_pair:
+        logging.error(f"{prefix_base} Critical error in embed_frame_pair (GPU Alpha): {e_embed_pair}", exc_info=True)
+        # Очистка CUDA памяти при ошибке, если используется GPU
+        if device.type == 'cuda':
+            with torch.no_grad():  # Убеждаемся, что нет активных градиентов
+                torch.cuda.empty_cache()
         return None, None
+
+
 # @profile
 def _embed_single_pair_task(args: Dict[str, Any]) -> Tuple[int, Optional[np.ndarray], Optional[np.ndarray], List[int]]:
     """
-    Обрабатывает одну пару кадров: выбирает кольца, вызывает embed_frame_pair (PyTorch).
+    Обрабатывает одну пару кадров: выбирает кольца (с GPU энтропией), вызывает embed_frame_pair (PyTorch).
     """
-    pair_idx = args.get('pair_idx', -1); f1_bgr = args.get('frame1'); f2_bgr = args.get('frame2')
+    pair_idx = args.get('pair_idx', -1);
+    f1_bgr = args.get('frame1');
+    f2_bgr = args.get('frame2')
     bits_for_this_pair = args.get('bits', [])
-    nr = args.get('n_rings', N_RINGS); nrtu = args.get('nu  m_rings_to_use', NUM_RINGS_TO_USE)
-    cps = args.get('candidate_pool_size', CANDIDATE_POOL_SIZE); ec = args.get('embed_component', EMBED_COMPONENT)
+    nr = args.get('n_rings', N_RINGS);
+    nrtu = args.get('num_rings_to_use', NUM_RINGS_TO_USE)
+    cps = args.get('candidate_pool_size', CANDIDATE_POOL_SIZE);
+    ec = args.get('embed_component', EMBED_COMPONENT)
     upm = args.get('use_perceptual_masking', USE_PERCEPTUAL_MASKING)
-    device = args.get('device'); dtcwt_fwd = args.get('dtcwt_fwd'); dtcwt_inv = args.get('dtcwt_inv')
-    fn = 2 * pair_idx; selected_rings = []
+    device = args.get('device');
+    dtcwt_fwd = args.get('dtcwt_fwd');
+    dtcwt_inv = args.get('dtcwt_inv')
+    fn = 2 * pair_idx;
+    selected_rings = []
 
     if pair_idx == -1 or f1_bgr is None or f2_bgr is None or not bits_for_this_pair \
-       or device is None or dtcwt_fwd is None or dtcwt_inv is None:
+            or device is None or dtcwt_fwd is None or dtcwt_inv is None:
         logging.error(f"Missing args or data for _embed_single_pair_task (P:{pair_idx})")
         return fn, None, None, []
     if not PYTORCH_WAVELETS_AVAILABLE:
@@ -2260,57 +2646,73 @@ def _embed_single_pair_task(args: Dict[str, Any]) -> Tuple[int, Optional[np.ndar
         return fn, None, None, []
 
     try:
-        # --- ШАГ 1: Выбор колец ---
         candidate_rings = get_fixed_pseudo_random_rings(pair_idx, nr, cps)
-        if len(candidate_rings) < nrtu: # Используем фактическое nrtu
-            logging.warning(f"[P:{pair_idx}] Not enough candidates {len(candidate_rings)}<{nrtu}. Using all.")
-            if len(candidate_rings) == 0: raise ValueError("No candidates found.")
-        #else:
-        #   logging.debug(f"[P:{pair_idx}] Candidates: {candidate_rings}")
+        if not candidate_rings:
+            logging.warning(f"[P:{pair_idx}] No candidate rings generated.")
+            return fn, f1_bgr, f2_bgr, []
+
+        actual_nrtu = min(nrtu, len(candidate_rings))
+        if len(candidate_rings) < nrtu:
+            logging.warning(
+                f"[P:{pair_idx}] Not enough candidates {len(candidate_rings)}<{nrtu}. Using all available {len(candidate_rings)}.")
 
         f1_ycrcb_np = cv2.cvtColor(f1_bgr, cv2.COLOR_BGR2YCrCb)
         comp1_tensor = torch.from_numpy(f1_ycrcb_np[:, :, ec].copy()).to(device=device, dtype=torch.float32) / 255.0
 
         Yl_t_select, _ = dtcwt_pytorch_forward(comp1_tensor, dtcwt_fwd, device, fn)
-        if Yl_t_select is None: raise RuntimeError(f"DTCWT FWD failed P:{pair_idx}")
-        if Yl_t_select.dim() > 2: Yl_t_select = Yl_t_select.squeeze()
+        if Yl_t_select is None: raise RuntimeError(f"DTCWT FWD failed for ring selection P:{pair_idx}")
+        if Yl_t_select.dim() > 2: Yl_t_select = Yl_t_select.squeeze(0).squeeze(0)
 
-        coords = ring_division(Yl_t_select, nr, fn) # PyTorch версия ring_division
-        if coords is None or len(coords) != nr: raise RuntimeError(f"Ring division failed P:{pair_idx}")
+        coords_list_gpu = ring_division(Yl_t_select, nr, fn)
+        if coords_list_gpu is None or len(coords_list_gpu) != nr:
+            raise RuntimeError(f"GPU Ring division failed or returned incorrect number of rings P:{pair_idx}")
 
-        # Выбор по энтропии
-        entropies = []; min_pixels_for_entropy = 10
-        for r_idx in candidate_rings:
-            entropy_val = -float('inf')
-            if 0 <= r_idx < len(coords) and coords[r_idx] is not None and coords[r_idx].shape[0] >= min_pixels_for_entropy:
-                 c_tensor = coords[r_idx]
-                 try:
-                       rows, cols = c_tensor[:, 0], c_tensor[:, 1]
-                       rv_tensor = Yl_t_select[rows, cols]
-                       rv_np = rv_tensor.cpu().numpy()
-                       shannon_entropy, _ = calculate_entropies(rv_np, fn, r_idx)
-                       if np.isfinite(shannon_entropy): entropy_val = shannon_entropy
-                 except Exception as e: logging.warning(f"[P:{pair_idx},R:{r_idx}] Entropy calc error: {e}")
-            entropies.append((entropy_val, r_idx))
+        entropies = []
+        min_pixels_for_entropy = 10
 
-        entropies.sort(key=lambda x: x[0], reverse=True)
-        selected_rings = [idx for e, idx in entropies if e > -float('inf')][:nrtu]
+        for r_idx_candidate in candidate_rings:
+            entropy_val_tensor = torch.tensor(-float('inf'), device=device, dtype=Yl_t_select.dtype)
+            if 0 <= r_idx_candidate < len(coords_list_gpu) and \
+                    coords_list_gpu[r_idx_candidate] is not None and \
+                    coords_list_gpu[r_idx_candidate].shape[0] >= min_pixels_for_entropy:
 
-        if len(selected_rings) < nrtu: # Fallback
-            logging.warning(f"[P:{pair_idx}] Fallback ring selection ({len(selected_rings)}<{nrtu}).")
-            det_fallback = candidate_rings[:nrtu]
-            for ring in det_fallback:
-                if ring not in selected_rings: selected_rings.append(ring)
-                if len(selected_rings) == nrtu: break
-            if len(selected_rings) < nrtu: raise RuntimeError(f"Fallback failed P:{pair_idx}")
-            logging.warning(f"[P:{pair_idx}] Selected rings after fallback: {selected_rings}")
-        # logging.info(f"[P:{pair_idx}] Selected rings: {selected_rings}") # Можно раскомментировать для отладки
+                coords_tensor_current_ring = coords_list_gpu[r_idx_candidate]
+                try:
+                    rows_current_ring, cols_current_ring = coords_tensor_current_ring[:, 0], coords_tensor_current_ring[
+                                                                                             :, 1]
+                    rv_tensor_current_ring = Yl_t_select[rows_current_ring, cols_current_ring]
+                    shannon_entropy_tensor, _ = calculate_entropies_torch(rv_tensor_current_ring.float(), fn,
+                                                                          r_idx_candidate)  # Убедимся, что float
 
-        # --- ШАГ 2: Вызов встраивания ---
+                    if torch.isfinite(shannon_entropy_tensor):
+                        entropy_val_tensor = shannon_entropy_tensor
+                except Exception as e_entropy:
+                    logging.warning(f"[P:{pair_idx},R_cand:{r_idx_candidate}] PyTorch Entropy calc error: {e_entropy}")
+            entropies.append((entropy_val_tensor, r_idx_candidate))
+
+        entropies.sort(key=lambda x: x[0].item(), reverse=True)
+        selected_rings = [idx for e_tensor, idx in entropies if e_tensor.item() > -float('inf')][:actual_nrtu]
+
+        if len(selected_rings) < actual_nrtu:
+            logging.warning(
+                f"[P:{pair_idx}] Fallback ring selection after entropy filtering ({len(selected_rings)}<{actual_nrtu}).")
+            for r_cand in candidate_rings:
+                if len(selected_rings) >= actual_nrtu: break
+                if r_cand not in selected_rings: selected_rings.append(r_cand)
+
+        if not selected_rings and bits_for_this_pair:
+            logging.error(f"[P:{pair_idx}] No rings selected, but bits need to be embedded. Returning original frames.")
+            return fn, f1_bgr, f2_bgr, []
+
+        logging.info(f"[P:{pair_idx}] Selected rings by GPU entropy: {selected_rings}")
+
         bits_to_embed_now = bits_for_this_pair[:len(selected_rings)]
-        if not bits_to_embed_now:
-             logging.warning(f"P:{pair_idx} No bits to embed after ring selection/trimming.")
-             return fn, f1_bgr, f2_bgr, selected_rings
+        if not selected_rings:
+            logging.debug(f"P:{pair_idx} No rings selected, returning original frames.")
+            return fn, f1_bgr, f2_bgr, []
+        if not bits_to_embed_now and selected_rings:  # Это условие, по идее, не должно срабатывать если selected_rings не пуст
+            logging.warning(f"P:{pair_idx} Rings selected but no bits to embed. Returning original frames.")
+            return fn, f1_bgr, f2_bgr, selected_rings
 
         mod_f1, mod_f2 = embed_frame_pair(
             f1_bgr, f2_bgr, bits_to_embed_now, selected_rings, nr, fn, upm, ec,
@@ -2320,9 +2722,8 @@ def _embed_single_pair_task(args: Dict[str, Any]) -> Tuple[int, Optional[np.ndar
         return fn, mod_f1, mod_f2, selected_rings
 
     except Exception as e:
-        logging.error(f"Error in _embed_single_pair_task P:{pair_idx}: {e}", exc_info=True)
+        logging.error(f"Error in _embed_single_pair_task (GPU entropy) P:{pair_idx}: {e}", exc_info=True)
         return fn, None, None, []
-
 
 
 def _embed_batch_worker(batch_args_list: List[Dict]) -> List[
@@ -2626,7 +3027,7 @@ def main() -> int:
         logging.critical("pytorch_wavelets недоступен! Невозможно создать DTCWT объекты.")
         return 1
 
-    input_video_path = "f1720.mp4"
+    input_video_path = "large.mp4"
     if not os.path.exists(input_video_path):
         logging.critical(f"Входной файл не найден: {input_video_path}")
         print(f"ОШИБКА: Входной файл не найден: {input_video_path}")
@@ -3018,7 +3419,7 @@ if __name__ == "__main__":
             profiler_instance.disable()
             print("\n--- Статистика Профилирования (cProfile) ---")
             stats_obj = pstats.Stats(profiler_instance).strip_dirs().sort_stats("cumulative")
-            stats_obj.print_stats(30)  # Печать топ-30 в консоль
+            stats_obj.print_stats(30)
             profile_prof_file = f"profile_embed_smart_t{BCH_T}.prof"
             profile_txt_file = f"profile_embed_smart_t{BCH_T}.txt"
             try:
