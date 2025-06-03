@@ -2439,7 +2439,6 @@ def embed_frame_pair(
                 one_tensor = torch.tensor(1.0, device=device, dtype=s1.dtype)
                 action_log_message = "No change needed"
 
-                # Определяем текущий встроенный бит (0 или 1) на основе original_ratio
                 current_bit_tensor = torch.where(original_ratio >= one_tensor,
                                                  torch.tensor(0, device=device, dtype=torch.long),
                                                  torch.tensor(1, device=device, dtype=torch.long))
@@ -2447,7 +2446,7 @@ def embed_frame_pair(
                 bit_to_embed_tensor = torch.tensor(bit_to_embed, device=device, dtype=torch.long)
 
                 modify_needed_tensor = (current_bit_tensor != bit_to_embed_tensor)
-                strengthen_needed_tensor = torch.tensor(False, device=device)  # Инициализируем как False тензор
+                strengthen_needed_tensor = torch.tensor(False, device=device)
                 target_ratio_tensor = original_ratio.clone()
 
                 if not modify_needed_tensor.item():  # Если .item() == False, т.е. биты совпадают
@@ -3027,7 +3026,7 @@ def main() -> int:
         logging.critical("pytorch_wavelets недоступен! Невозможно создать DTCWT объекты.")
         return 1
 
-    input_video_path = "large.mp4"
+    input_video_path = "f1720.mp4"
     if not os.path.exists(input_video_path):
         logging.critical(f"Входной файл не найден: {input_video_path}")
         print(f"ОШИБКА: Входной файл не найден: {input_video_path}")

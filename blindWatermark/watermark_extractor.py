@@ -1,9 +1,6 @@
 import cProfile
 import concurrent
-import gc
 import pstats
-import shutil
-import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 import cv2
@@ -82,15 +79,6 @@ except ImportError:
 except Exception as import_err:
     class BCH: pass; BCH_TYPE = BCH; GALOIS_IMPORTED = False; logging.error(f"Galois import error: {import_err}", exc_info=True)
 
-CV2_AVAILABLE = False
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except ImportError:
-    pass # Просто устанавливаем флаг, обработаем ошибку позже, если CV2_AVAILABLE останется False
-
-
-
 # --- Глобальные Параметры ---
 LAMBDA_PARAM: float = 0.05
 ALPHA_MIN: float = 1.13
@@ -152,9 +140,9 @@ else: logging.warning("galois: НЕ ДОСТУПЕН.")
 # --- Настройка логирования ---
 for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
 logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO, format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
-# logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.DEBUG)
 
-# --- Логирование конфигурации ---R
+# --- Логирование конфигурации ---
 logging.info(f"--- Запуск Скрипта Извлечения (PyTorch Wavelets & DCT) ---")
 logging.info(f"PyTorch Wavelets Доступно: {PYTORCH_WAVELETS_AVAILABLE}")
 logging.info(f"Torch DCT Доступно: {TORCH_DCT_AVAILABLE}")
@@ -220,23 +208,12 @@ def ring_division(lp_tensor: torch.Tensor, nr: int = N_RINGS, fn: int = -1) -> L
         return rings
     except Exception as e: logging.error(f"Ring division PT error F{fn}: {e}"); return [None] * nr
 
-@profile
+
 def calculate_entropies_torch(rv_tensor: torch.Tensor, fn: int = -1, ri: int = -1) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Вычисляет шенноновскую энтропию и "энтропию столкновений" (ваша формула)
     для одномерного PyTorch тензора значений пикселей (нормализованных).
     Все вычисления выполняются на устройстве rv_tensor.
-
-    Args:
-        rv_tensor: Одномерный PyTorch тензор значений пикселей, нормализованных в [0, 1].
-        fn: Номер кадра (для логирования, опционально).
-        ri: Индекс кольца (для логирования, опционально).
-
-    Returns:
-        Кортеж (torch.Tensor, torch.Tensor):
-            - Шенноновская энтропия (скалярный тензор).
-            - Энтропия столкновений (скалярный тензор).
-            Возвращает (0.0, 0.0) тензоры, если тензор пуст или все его значения одинаковы.
     """
     eps = 1e-12
     shannon_entropy = torch.tensor(0.0, device=rv_tensor.device, dtype=rv_tensor.dtype)
@@ -246,8 +223,6 @@ def calculate_entropies_torch(rv_tensor: torch.Tensor, fn: int = -1, ri: int = -
         if torch.all(rv_tensor == rv_tensor[0]):
             return shannon_entropy, collision_entropy
 
-        # Для torch.histc нужен float тензор. Если rv_tensor уже float, это не повредит.
-        # Если он другой (например, double), лучше привести явно.
         hist = torch.histc(rv_tensor.float(), bins=256, min=0.0, max=1.0)
 
         total_count = rv_tensor.numel()
@@ -265,6 +240,7 @@ def calculate_entropies_torch(rv_tensor: torch.Tensor, fn: int = -1, ri: int = -
                 collision_entropy = ee
 
     return shannon_entropy, collision_entropy
+
 
 def get_fixed_pseudo_random_rings(pi: int, nr: int, ps: int) -> List[int]:
     """
@@ -352,294 +328,6 @@ def decode_ecc(packet_bits_list: List[int], bch_code: Optional[BCH_TYPE], expect
         logging.info(f"Galois ECC: Decoded, corrected {n_corrected} errors.")
         return payload_bytes, n_corrected
     except Exception as e: logging.error(f"Decode ECC unexpected error: {e}", exc_info=True); return None, -1
-
-
-def bits_to_bytes_strict(bit_list: List[int]) -> Optional[bytes]:
-    """
-    Конвертирует список бит (только 0 или 1) в байтовую строку.
-    Ожидает, что длина списка кратна 8 и не содержит None.
-    """
-    num_bits = len(bit_list)
-
-    if not all(b in (0, 1) for b in bit_list):
-        logging.error("bits_to_bytes_strict: список содержит невалидные биты (не 0 или 1).")
-        return None
-
-    if num_bits == 0:
-        return b''  # Возвращаем пустую байтовую строку для пустого списка бит
-
-    if num_bits % 8 != 0:
-        logging.error(f"bits_to_bytes_strict: длина списка бит ({num_bits}) не кратна 8.")
-        return None
-
-    byte_array = bytearray()
-    for i in range(0, num_bits, 8):
-        byte_chunk = bit_list[i:i + 8]
-        try:
-            byte_val = int("".join(map(str, byte_chunk)), 2)
-            byte_array.append(byte_val)
-        except ValueError:  # Маловероятно, если биты уже проверены
-            logging.error(f"bits_to_bytes_strict: Не удалось конвертировать битовый чанк: {byte_chunk}")
-            return None
-    return bytes(byte_array)
-
-
-def get_byte_from_bits(bits_payload: List[int], byte_index: int) -> Optional[int]:
-    """
-    Извлекает байт (как int от 0 до 255) из списка бит по его индексу.
-    Args:
-        bits_payload: Список бит (0 или 1).
-        byte_index: Индекс байта для извлечения (0-based).
-    Returns:
-        Значение байта (int) или None, если индекс выходит за пределы.
-    """
-    start_bit_index = byte_index * 8
-    end_bit_index = start_bit_index + 8
-
-    if start_bit_index < 0 or end_bit_index > len(bits_payload):
-        # logging.warning(f"get_byte_from_bits: Индекс байта {byte_index} вне диапазона для длины бит {len(bits_payload)}.")
-        return None
-
-    byte_bits_str = "".join(map(str, bits_payload[start_bit_index:end_bit_index]))
-    try:
-        return int(byte_bits_str, 2)
-    except ValueError:
-        # logging.error(f"get_byte_from_bits: Не удалось конвертировать битовую строку '{byte_bits_str}' в int.")
-        return None
-
-
-def get_bits_from_byte_value(byte_value: int) -> List[int]:
-    """
-    Конвертирует значение байта (int от 0 до 255) в список из 8 бит.
-    """
-    if not (0 <= byte_value <= 255):
-        # logging.error(f"get_bits_from_byte_value: Значение байта {byte_value} вне диапазона 0-255.")
-        raise ValueError("Значение байта должно быть в диапазоне 0-255")
-    return [int(bit) for bit in format(byte_value, '08b')]
-
-
-# Ваша функция decode_ecc (предполагается, что она уже есть в вашем коде и возвращает Tuple[Optional[List[int]], int])
-# Я включу ее здесь для полноты, адаптированную для возврата List[int]
-def decode_ecc(packet_bits_list: List[int], bch_code: Optional[BCH_TYPE], expected_data_len_bytes: int) -> Tuple[
-    Optional[List[int]], int]:
-    if not GALOIS_AVAILABLE or bch_code is None:
-        return None, -1
-    n_corrected = -1
-    payload_len_bits = expected_data_len_bytes * 8
-    try:
-        if not (hasattr(bch_code, 'n') and hasattr(bch_code, 'k') and hasattr(bch_code, 'field') and hasattr(bch_code,
-                                                                                                             'decode')):
-            logging.error("decode_ecc: Объект bch_code не имеет необходимых атрибутов.")
-            return None, -1
-
-        n_val: int = bch_code.n  # type: ignore
-        k_val: int = bch_code.k  # type: ignore
-
-        if len(packet_bits_list) != n_val:
-            logging.error(
-                f"Decode ECC: Неверная длина входного пакета {len(packet_bits_list)} != {n_val} (ожидаемая длина кодового слова).")
-            return None, -1
-        if payload_len_bits > k_val:
-            logging.error(
-                f"Decode ECC: Ожидаемая длина полезной нагрузки ({payload_len_bits}) > информационной длины кода k ({k_val}).")
-            return None, -1
-
-        packet_bits_np_arr = np.array(packet_bits_list, dtype=np.uint8)
-        GF_field = bch_code.field  # type: ignore
-        rx_codeword_vector = GF_field(packet_bits_np_arr)
-
-        try:
-            corrected_msg_vector, num_errors_found = bch_code.decode(rx_codeword_vector, errors=True)  # type: ignore
-            n_corrected = int(num_errors_found)
-        except galois.errors.UncorrectableError:  # type: ignore
-            logging.warning(f"Galois ECC: Неисправимые ошибки в пакете (длина {len(packet_bits_list)}).")
-            return None, -1
-        except Exception as e_decoding_error:
-            logging.error(f"Decode ECC: Ошибка во время bch_code.decode: {e_decoding_error}", exc_info=True)
-            return None, -1
-
-        corrected_k_bits_np_arr = corrected_msg_vector.view(np.ndarray).astype(np.uint8)
-
-        if corrected_k_bits_np_arr.size < payload_len_bits:
-            logging.error(
-                f"Decode ECC: Длина декодированных информационных бит ({corrected_k_bits_np_arr.size}) < ожидаемой ({payload_len_bits}).")
-            return None, n_corrected
-
-        final_payload_bits_list = corrected_k_bits_np_arr[:payload_len_bits].tolist()
-
-        # logging.info(f"Galois ECC: Пакет успешно декодирован, исправлено ошибок: {n_corrected}.") # Можно раскомментировать для детального лога
-        return final_payload_bits_list, n_corrected
-
-    except Exception as e_general_ecc:
-        logging.error(f"Decode ECC: Неожиданная ошибка: {e_general_ecc}", exc_info=True)
-        return None, -1
-
-
-def ultimate_voting_strategy(
-        valid_packets_info: List[Dict[str, Any]],
-        # {'bits': List[int], 'hex': str, 'type': str, 'corrected_errors': int}
-        payload_len_bytes: int
-) -> List[str]:  # Возвращает список из 1 или 2 HEX-кандидатов
-
-    payload_len_bits = payload_len_bytes * 8
-    num_valid_packets = len(valid_packets_info)
-
-    if num_valid_packets == 0:
-        logging.error("Ultimate Voting: Нет валидных пакетов для голосования.")
-        print("ОШИБКА: Нет валидных пакетов для голосования.")
-        return []
-
-    logging.info(f"Ultimate Voting (Mod для 2х кандидатов): Голосование по {num_valid_packets} валидным пакетам...")
-
-    # --- Этап 1: Побитовое Мажоритарное Голосование ---
-    print("\n--- Этап 1: Побитовое Голосование (Результат может содержать ничьи) ---")
-    print(f"{'Bit Pos':<8} | {'Votes 0':<8} | {'Votes 1':<8} | {'Bit Winner':<11}")
-    print("-" * (8 + 9 + 9 + 12))
-
-    # bit_voting_candidate_bits будет содержать результат побитового голосования (без None)
-    # Если была ничья на побитовом уровне, мы ее принудительно разрешим (например, в пользу 0)
-    # но запомним, что была ничья, для Этапа 2.
-    bit_voting_candidate_bits: List[int] = [0] * payload_len_bits  # Инициализируем (например, нулями)
-    bit_level_tie_indices: List[int] = []  # Индексы бит, где была ничья на побитовом уровне
-
-    for j in range(payload_len_bits):
-        votes_for_0 = 0
-        votes_for_1 = 0
-        for packet_info in valid_packets_info:
-            if j < len(packet_info['bits']):
-                if packet_info['bits'][j] == 1:
-                    votes_for_1 += 1
-                elif packet_info['bits'][j] == 0:
-                    votes_for_0 += 1
-
-        if votes_for_1 > votes_for_0:
-            bit_voting_candidate_bits[j] = 1
-            winner_str = "1"
-        elif votes_for_0 > votes_for_1:
-            bit_voting_candidate_bits[j] = 0
-            winner_str = "0"
-        else:  # Ничья на битовом уровне
-            bit_voting_candidate_bits[j] = 0  # Принудительное разрешение в пользу '0' для Кандидата 1
-            winner_str = "0 (TIE)"
-            bit_level_tie_indices.append(j)
-            logging.info(f"Bit {j}: Ничья на побитовом ({votes_for_0}v{votes_for_1}). Для Кандидата1 выбран '0'.")
-        print(f"{j:<8} | {votes_for_0:<8} | {votes_for_1:<8} | {winner_str:<11}")
-    print("-" * (8 + 9 + 9 + 12))
-
-    candidate1_bytes = bits_to_bytes_strict(bit_voting_candidate_bits)
-    if not candidate1_bytes or len(candidate1_bytes) != payload_len_bytes:
-        logging.error("Не удалось сформировать Кандидата 1 из результатов побитового голосования.")
-        return []
-    candidate1_hex = candidate1_bytes.hex()
-    final_hex_candidates = [candidate1_hex]
-    logging.info(f"Сформирован Кандидат 1 (побитовое с разрешением ничьих в '0'): {candidate1_hex}")
-
-    # --- Этап 2: Байт-уровневое Голосование (проводится всегда, как "второе мнение") ---
-    print(f"\n--- Этап 2: Голосование по Байтам (как 'второе мнение') ---")
-    byte_voting_candidate_bits: List[int] = [0] * payload_len_bits
-    # Информация о том, какой байт был неоднозначным на байтовом уровне и его варианты
-    ambiguous_byte_info_for_cand2: Optional[Tuple[int, List[int]]] = None  # (byte_idx, list_of_winning_byte_values)
-
-    for byte_idx in range(payload_len_bytes):
-        byte_values_from_packets: List[Tuple[int, str, int]] = []
-        for packet_info in valid_packets_info:
-            byte_val = get_byte_from_bits(packet_info['bits'], byte_idx)
-            if byte_val is not None:
-                byte_values_from_packets.append(
-                    (byte_val, packet_info['type'], packet_info.get('corrected_errors', 0))
-                )
-
-        if not byte_values_from_packets:
-            logging.error(
-                f"Нет валидных байт для голосования по байту {byte_idx} на Этапе 2. Используем биты из Кандидата 1.")
-            # Копируем биты из уже сформированного Кандидата 1 для этого байта
-            for k_copy in range(8):
-                bit_g_idx_copy = byte_idx * 8 + k_copy
-                byte_voting_candidate_bits[bit_g_idx_copy] = bit_voting_candidate_bits[
-                    bit_g_idx_copy]  # Ошибка, должно быть candidate1_bits
-            continue
-
-        byte_counts = Counter(bv[0] for bv in byte_values_from_packets)
-        most_common_bytes_tuples = byte_counts.most_common()
-        logging.debug(f"    Голоса за байт {byte_idx} (Этап 2): {most_common_bytes_tuples}")
-
-        if not most_common_bytes_tuples:  # Маловероятно, если byte_values_from_packets не пуст
-            logging.error(f"Нет информации о голосах для байта {byte_idx} на Этапе 2.")
-            # Копируем биты из Кандидата 1
-            for k_copy_err in range(8): byte_voting_candidate_bits[byte_idx * 8 + k_copy_err] = \
-            bit_voting_candidate_bits[byte_idx * 8 + k_copy_err]
-            continue
-
-        max_vote_count = most_common_bytes_tuples[0][1]
-        winning_bytes_at_byte_level_stage2 = sorted(
-            [b_val for b_val, count in most_common_bytes_tuples if count == max_vote_count])
-
-        chosen_byte_for_stage2: Optional[int] = None
-
-        # Правило разрешения ничьей на байтовом уровне для "второго мнения"
-        if len(winning_bytes_at_byte_level_stage2) == 1:
-            chosen_byte_for_stage2 = winning_bytes_at_byte_level_stage2[0]
-            logging.info(f"  Байт {byte_idx} (Этап 2): Однозначный победитель {hex(chosen_byte_for_stage2)}.")
-        else:  # Ничья на байтовом уровне
-            logging.warning(
-                f"  Байт {byte_idx} (Этап 2): Ничья на байт. уровне! Кандидаты: {[hex(b) for b in winning_bytes_at_byte_level_stage2]}.")
-            # Ищем приоритетный ECC с corrected > 0 среди этих победителей
-            best_ecc_byte_val_s2: Optional[int] = None
-            min_pos_corr_s2 = float('inf')
-            for b_winner_s2 in winning_bytes_at_byte_level_stage2:
-                for p_byte_val, p_type, p_corrected in byte_values_from_packets:
-                    if p_byte_val == b_winner_s2 and p_type == 'ECC' and p_corrected > 0:
-                        if p_corrected < min_pos_corr_s2:
-                            min_pos_corr_s2 = p_corrected
-                            best_ecc_byte_val_s2 = b_winner_s2
-                        break  # Достаточно найти один раз для этого b_winner_s2
-                if best_ecc_byte_val_s2 is not None and min_pos_corr_s2 != float(
-                        'inf'):  # Если лучший ECC для этого набора уже определен
-                    break
-
-            if best_ecc_byte_val_s2 is not None:
-                chosen_byte_for_stage2 = best_ecc_byte_val_s2
-                logging.info(
-                    f"  Байт {byte_idx} (Этап 2): Ничья разрешена по ECC c >0 испр. в {hex(chosen_byte_for_stage2)} (испр: {min_pos_corr_s2}).")
-            else:
-                # Нет приоритетного ECC, берем первый из списка победителей байтовой ничьей
-                chosen_byte_for_stage2 = winning_bytes_at_byte_level_stage2[0]
-                logging.info(
-                    f"  Байт {byte_idx} (Этап 2): Ничья разрешена выбором первого из байт. ничьей в {hex(chosen_byte_for_stage2)}.")
-                # Если это тот байт, где мы можем сформировать 2-го кандидата
-                if len(winning_bytes_at_byte_level_stage2) == 2 and ambiguous_byte_info_for_cand2 is None:  # Только для первого такого случая
-                    ambiguous_byte_info_for_cand2 = (byte_idx, winning_bytes_at_byte_level_stage2)
-
-        if chosen_byte_for_stage2 is None:  # Не должно произойти
-            logging.error(f"Критическая ошибка: не выбран байт для байта {byte_idx} на Этапе 2")
-            return [candidate1_hex]  # Возвращаем только первого кандидата
-
-        chosen_byte_bits_s2 = get_bits_from_byte_value(chosen_byte_for_stage2)
-        for k_s2 in range(8):
-            byte_voting_candidate_bits[byte_idx * 8 + k_s2] = chosen_byte_bits_s2[k_s2]
-
-    candidate2_bytes_from_byte_voting = bits_to_bytes_strict(byte_voting_candidate_bits)
-    if not candidate2_bytes_from_byte_voting or len(candidate2_bytes_from_byte_voting) != payload_len_bytes:
-        logging.error("Не удалось сформировать кандидата из результатов байтового голосования (Этап 2).")
-        # В этом случае возвращаем только результат побитового голосования
-        return final_hex_candidates  # Который содержит candidate1_hex
-
-    candidate2_hex_from_byte_voting = candidate2_bytes_from_byte_voting.hex()
-    logging.info(f"Сформирован Кандидат по Байтовому голосованию (Этап 2): {candidate2_hex_from_byte_voting}")
-
-    if candidate1_hex != candidate2_hex_from_byte_voting:
-        logging.info(f"Результаты побитового и побайтового голосования различаются. Предлагаем два кандидата.")
-        final_hex_candidates.append(candidate2_hex_from_byte_voting)
-        print(f"Кандидат 2 (из байтового голосования): {candidate2_hex_from_byte_voting}")
-    else:
-        logging.info("Результаты побитового и побайтового голосования совпали.")
-        # print("  (Кандидат, полученный байтовым голосованием, совпал с Кандидатом 1)")
-
-    print(f"\n--- Финальные Кандидаты (Ultimate Voting) ---")
-    for i, cand_hex in enumerate(final_hex_candidates):
-        print(f"Кандидат {i + 1}: {cand_hex}")
-
-    return final_hex_candidates
 
 @profile
 def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_idx: int, n_rings: int, fn: int) -> Optional[int]:
@@ -733,19 +421,19 @@ def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_id
         return None
 
 
-@profile
 def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optional[int]]]:
     """
     Обрабатывает батч задач извлечения: выполняет DTCWT один раз на пару,
-    затем вызывает extract_single_bit для выбранных колец (с GPU энтропией).
+    выбирает кольца с использованием GPU-энтропии,
+    затем вызывает extract_single_bit для выбранных колец.
     """
     batch_results: Dict[int, List[Optional[int]]] = {}
-    if not batch_args_list: return {}
+    if not batch_args_list:
+        return {}
 
     args_example = batch_args_list[0]
     nr = args_example.get('n_rings', N_RINGS)
-    # nrtu здесь будет фактическим количеством колец, из которых ИЗВЛЕКАЮТСЯ биты,
-    # оно должно быть равно BITS_PER_PAIR (или NUM_RINGS_TO_USE, если они равны)
+    # nrtu_effective - это BITS_PER_PAIR, т.е. сколько бит мы ожидаем извлечь из пары
     nrtu_effective = args_example.get('num_rings_to_use', NUM_RINGS_TO_USE)
     cps = args_example.get('candidate_pool_size', CANDIDATE_POOL_SIZE)
     ec = args_example.get('embed_component', EMBED_COMPONENT)
@@ -753,11 +441,11 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
     dtcwt_fwd = args_example.get('dtcwt_fwd')
 
     if device is None or dtcwt_fwd is None:
-        logging.error("Device или DTCWTForward не переданы в _extract_batch_worker!")
-        for args_item in batch_args_list:  # Исправлено: args -> args_item
-            pair_idx_item = args_item.get('pair_idx', -1)  # Исправлено: args -> args_item
+        logging.error("Device или DTCWTForward не переданы в _extract_batch_worker (extractor)!")
+        for args_item in batch_args_list:
+            pair_idx_item = args_item.get('pair_idx', -1)
             if pair_idx_item != -1:
-                batch_results[pair_idx_item] = [None] * nrtu_effective
+                batch_results[pair_idx_item] = [None] * nrtu_effective  # Заполняем None
         return batch_results
 
     for args in batch_args_list:
@@ -769,11 +457,12 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
         extracted_bits_for_pair: List[Optional[int]] = [None] * nrtu_effective
 
         if pair_idx == -1 or f1_bgr is None or f2_bgr is None:
-            logging.error(f"Недостаточно аргументов для обработки pair_idx={pair_idx if pair_idx != -1 else 'unknown'}")
-            if pair_idx != -1: batch_results[pair_idx] = extracted_bits_for_pair
+            logging.error(
+                f"Extractor: Недостаточно аргументов для обработки pair_idx={pair_idx if pair_idx != -1 else 'unknown'}")
+            if pair_idx != -1: batch_results[pair_idx] = extracted_bits_for_pair  # Сохраняем None результат
             continue
 
-        fn = 2 * pair_idx
+        fn = 2 * pair_idx  # Номер первого кадра в паре
         L1_tensor: Optional[torch.Tensor] = None
         L2_tensor: Optional[torch.Tensor] = None
 
@@ -818,7 +507,8 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
                 raise ValueError(f"L1/L2 shape mismatch! L1:{L1_tensor.shape}, L2:{L2_tensor.shape}")
 
             # --- Выбор колец с GPU энтропией ---
-            coords_list_gpu = ring_division(L1_tensor, nr, fn)  # ring_division уже GPU-версия
+            # ring_division уже должна быть GPU-версией, возвращающей список тензоров координат
+            coords_list_gpu = ring_division(L1_tensor, nr, fn)
             if coords_list_gpu is None or len(coords_list_gpu) != nr:
                 logging.warning(f"[Extractor Worker P:{pair_idx}] Ring division failed.")
                 batch_results[pair_idx] = extracted_bits_for_pair;
@@ -826,80 +516,77 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
 
             candidate_rings = get_fixed_pseudo_random_rings(pair_idx, nr, cps)
 
-            # Определяем, сколько колец мы фактически будем использовать для выбора
-            # Это должно быть равно nrtu_effective (т.е. BITS_PER_PAIR)
-            num_rings_to_actually_select = min(nrtu_effective, len(candidate_rings))
+            # Количество колец, которые мы пытаемся выбрать, равно nrtu_effective (BITS_PER_PAIR)
+            num_rings_to_attempt_select = min(nrtu_effective, len(candidate_rings))
 
             if len(candidate_rings) < nrtu_effective:
                 logging.warning(
                     f"[Extractor Worker P:{pair_idx}] Not enough candidates {len(candidate_rings)}<{nrtu_effective}. Will select {len(candidate_rings)}.")
-            if num_rings_to_actually_select == 0 and nrtu_effective > 0:  # Если не из чего выбирать, а биты нужны
+
+            if num_rings_to_attempt_select == 0 and nrtu_effective > 0:
                 logging.error(
-                    f"[Extractor Worker P:{pair_idx}] No candidate rings to select from, but {nrtu_effective} bits expected.")
-                batch_results[pair_idx] = [None] * nrtu_effective  # Заполняем None
+                    f"[Extractor Worker P:{pair_idx}] No candidate rings to select from for {nrtu_effective} bits.")
+                batch_results[pair_idx] = [None] * nrtu_effective
                 continue
 
-            entropies = []
-            min_pixels = 10
-            # L1_tensor УЖЕ на GPU
-            for r_idx_cand in candidate_rings:
-                entropy_val_tensor = torch.tensor(-float('inf'), device=device, dtype=L1_tensor.dtype)
-                if 0 <= r_idx_cand < len(coords_list_gpu) and \
-                        coords_list_gpu[r_idx_cand] is not None and \
-                        coords_list_gpu[r_idx_cand].shape[0] >= min_pixels:
+            entropies_gpu = []  # Список для (тензор_энтропии, индекс_кольца)
+            min_pixels_for_entropy = 10
 
-                    coords_tensor_curr_ring = coords_list_gpu[r_idx_cand]
+            # L1_tensor (LL-поддиапазон первого кадра) используется для выбора колец
+            for r_idx_candidate in candidate_rings:
+                entropy_val_tensor = torch.tensor(-float('inf'), device=device, dtype=L1_tensor.dtype)
+                if 0 <= r_idx_candidate < len(coords_list_gpu) and \
+                        coords_list_gpu[r_idx_candidate] is not None and \
+                        coords_list_gpu[r_idx_candidate].shape[0] >= min_pixels_for_entropy:
+
+                    coords_tensor_curr_ring = coords_list_gpu[r_idx_candidate]
                     try:
                         rows_curr_ring, cols_curr_ring = coords_tensor_curr_ring[:, 0], coords_tensor_curr_ring[:, 1]
+                        # Извлекаем значения пикселей кольца из L1_tensor (уже на GPU)
                         rv_tensor_curr_ring = L1_tensor[rows_curr_ring, cols_curr_ring]
-                        # Используем calculate_entropies_torch
+                        # Вычисляем Шенноновскую энтропию с помощью calculate_entropies_torch
                         shannon_entropy_tensor, _ = calculate_entropies_torch(rv_tensor_curr_ring.float(), fn,
-                                                                              r_idx_cand)
+                                                                              r_idx_candidate)
                         if torch.isfinite(shannon_entropy_tensor):
                             entropy_val_tensor = shannon_entropy_tensor
                     except IndexError:
                         logging.warning(
-                            f"[Extractor P:{pair_idx} R_cand:{r_idx_cand}] IndexError during GPU entropy calculation.")
-                    except Exception as e_entr:
+                            f"[Extractor P:{pair_idx} R_cand:{r_idx_candidate}] IndexError during GPU entropy.")
+                    except Exception as e_entr_gpu:
                         logging.warning(
-                            f"[Extractor P:{pair_idx} R_cand:{r_idx_cand}] GPU Entropy calc error: {e_entr}")
-                entropies.append((entropy_val_tensor, r_idx_cand))
+                            f"[Extractor P:{pair_idx} R_cand:{r_idx_candidate}] GPU Entropy calc error: {e_entr_gpu}")
+                entropies_gpu.append((entropy_val_tensor, r_idx_candidate))
 
-            entropies.sort(key=lambda x: x[0].item(), reverse=True)
-            selected_rings = [idx for e_tensor, idx in entropies if e_tensor.item() > -float('inf')][
-                             :num_rings_to_actually_select]
+            # Сортировка по значению тензора энтропии
+            entropies_gpu.sort(key=lambda x: x[0].item(), reverse=True)
 
-            if len(selected_rings) < num_rings_to_actually_select:
+            # Выбираем лучшие num_rings_to_attempt_select колец
+            selected_rings = [idx for e_tensor, idx in entropies_gpu if e_tensor.item() > -float('inf')][
+                             :num_rings_to_attempt_select]
+
+            # Fallback, если после фильтрации по -inf не хватило до num_rings_to_attempt_select
+            if len(selected_rings) < num_rings_to_attempt_select:
                 logging.warning(
-                    f"[Extractor Worker P:{pair_idx}] Fallback ring selection ({len(selected_rings)}<{num_rings_to_actually_select}).")
-                for r_cand in candidate_rings:
-                    if len(selected_rings) >= num_rings_to_actually_select: break
+                    f"[Extractor Worker P:{pair_idx}] Fallback ring selection after GPU entropy ({len(selected_rings)}<{num_rings_to_attempt_select}).")
+                for r_cand in candidate_rings:  # Идем по исходным кандидатам
+                    if len(selected_rings) >= num_rings_to_attempt_select: break
                     if r_cand not in selected_rings: selected_rings.append(r_cand)
 
-            if len(selected_rings) < nrtu_effective:  # Если даже после fallback не набрали нужное число колец
-                logging.error(
-                    f"[Extractor Worker P:{pair_idx}] Critical: Not enough rings selected ({len(selected_rings)}) for {nrtu_effective} bits.")
-                # Заполняем оставшиеся биты как None
-                current_extracted_bits = [None] * len(selected_rings)  # Сначала для тех, что есть
-                for i, ring_idx_to_extract in enumerate(selected_rings):
-                    current_extracted_bits[i] = extract_single_bit(L1_tensor, L2_tensor, ring_idx_to_extract, nr, fn)
-
-                # Дополняем None до nrtu_effective
-                while len(current_extracted_bits) < nrtu_effective:
-                    current_extracted_bits.append(None)
-                extracted_bits_for_pair = current_extracted_bits
-            else:
-                # Если колец достаточно, извлекаем из них биты
-                # extracted_bits_for_pair уже инициализирован как [None] * nrtu_effective
-                for i, ring_idx_to_extract in enumerate(
-                        selected_rings):  # selected_rings теперь имеет длину nrtu_effective (или меньше, если кандидатов было мало)
-                    if i < nrtu_effective:  # Защита, чтобы не выйти за пределы pre-allocated list
-                        extracted_bits_for_pair[i] = extract_single_bit(L1_tensor, L2_tensor, ring_idx_to_extract, nr,
-                                                                        fn)
+            # Если итоговое количество выбранных колец меньше, чем мы ожидали извлечь бит (nrtu_effective),
+            # то для недостающих бит результат будет None.
+            actual_rings_for_extraction = selected_rings  # Это те кольца, из которых будем реально извлекать
 
             logging.info(
-                f"[Extractor Worker P:{pair_idx}] Selected {len(selected_rings)} rings for extraction: {selected_rings}. Extracted bits: {extracted_bits_for_pair}")
-            batch_results[pair_idx] = extracted_bits_for_pair
+                f"[Extractor Worker P:{pair_idx}] Selected {len(actual_rings_for_extraction)} rings using GPU entropy: {actual_rings_for_extraction}. Expecting to fill {nrtu_effective} bit slots.")
+
+            # extracted_bits_for_pair уже инициализирован как [None] * nrtu_effective
+            for i, ring_idx_to_extract in enumerate(actual_rings_for_extraction):
+                # Убедимся, что не выходим за пределы nrtu_effective, если колец оказалось больше (не должно, но для безопасности)
+                if i < nrtu_effective:
+                    extracted_bits_for_pair[i] = extract_single_bit(L1_tensor, L2_tensor, ring_idx_to_extract, nr, fn)
+
+            batch_results[
+                pair_idx] = extracted_bits_for_pair  # Содержит nrtu_effective элементов, некоторые могут быть None
 
         except cv2.error as cv_err:
             logging.error(f"OpenCV error P:{pair_idx} in Extractor worker: {cv_err}", exc_info=True)
@@ -912,7 +599,6 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
             if pair_idx != -1: batch_results[pair_idx] = [None] * nrtu_effective
 
     return batch_results
-
 
 # --- Вспомогательная функция чтения кадров ---
 def read_required_frames_opencv(video_path: str, num_frames_to_read: int) -> Optional[List[np.ndarray]]:
@@ -1064,7 +750,7 @@ def generate_frame_pairs_opencv(video_path: str,
 
 
 # --- Основная функция извлечения ---
-@profile
+# @profile
 def extract_watermark_from_video(
         frames: List[np.ndarray],
         nr: int = N_RINGS,
@@ -1195,8 +881,8 @@ def extract_watermark_from_video(
             return None
 
     # --- Запуск ThreadPoolExecutor ---
-    num_workers = mw if mw is not None and mw > 0 else (os.cpu_count() or 1)
-    batch_size = max(1, ceil(pairs_to_process / (num_workers * 3)))
+    num_workers = mw if mw is not None and mw > 0 else 1
+    batch_size = max(1, ceil(num_valid_tasks / num_workers));
     batched_args_list = [all_pairs_args[i: i + batch_size] for i in range(0, pairs_to_process, batch_size) if
                          all_pairs_args[i:i + batch_size]]
     actual_num_batches = len(batched_args_list)
@@ -1392,27 +1078,25 @@ def extract_watermark_from_video(
 
 
 # --- Функция main ---
-@profile
 def main() -> int:
+    """
+    Основная функция запуска экстрактора ЦВЗ.
+    Читает необходимое количество кадров с помощью OpenCV и передает их
+    функции извлечения, которая использует ThreadPoolExecutor.
+    """
     main_start_time = time.time()
-    # Используем глобальную LOG_FILENAME
-    logging.info(f"--- Запуск Основного Процесса Извлечения (с чтением XMP и Ultimate Voting) ---")
+    logging.info(f"--- Запуск Основного Процесса Извлечения (OpenCV Limited Read + ThreadPool) ---")
 
-    # Проверки основных библиотек (глобальные флаги должны быть уже установлены)
+    # --- Инициализация PyTorch и Проверки ---
     if not PYTORCH_WAVELETS_AVAILABLE or not TORCH_DCT_AVAILABLE:
-        print("ERROR: PyTorch libraries required.")
-        logging.critical("Критические PyTorch библиотеки не найдены в main.")
+        print("ERROR: PyTorch libraries required.");
+        logging.critical("Критические PyTorch библиотеки не найдены.")
         return 1
-    if not CV2_AVAILABLE:  # Глобальный флаг CV2_AVAILABLE
-        print("ERROR: OpenCV (cv2) is required to read frames.")
-        logging.critical("OpenCV (cv2) не найден в main.")
-        return 1
-
-    # Используем глобальную expect_hybrid_ecc_global или USE_ECC
-    current_expect_hybrid_ecc = globals().get('expect_hybrid_ecc_global', USE_ECC)
-    if USE_ECC and current_expect_hybrid_ecc and not GALOIS_AVAILABLE:
-        print("\nWARNING: ECC requested for hybrid mode but galois unavailable.")
-        logging.warning("Galois недоступен, ECC для гибридного режима не будет работать (влияет на расчет числа пар).")
+    if USE_ECC and not GALOIS_AVAILABLE:
+        global_expect_hybrid_ecc = globals().get('expect_hybrid_ecc_global', USE_ECC)
+        if global_expect_hybrid_ecc:
+            print("\nWARNING: ECC requested for hybrid mode but galois unavailable.")
+            logging.warning("Galois недоступен, ECC для гибридного режима не будет работать.")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
@@ -1426,153 +1110,105 @@ def main() -> int:
         logging.info("Используется CPU.")
 
     dtcwt_fwd: Optional[DTCWTForward] = None
-    DTCWTForwardTypeActual = globals().get(
-        'DTCWTForward')  # Получаем тип, если он определен как DTCWTForward = ActualDTCWTForward
-    if PYTORCH_WAVELETS_AVAILABLE and DTCWTForwardTypeActual is not None:
+    if PYTORCH_WAVELETS_AVAILABLE:
         try:
-            # Проверяем, что это не заглушка Any, если строго
-            if DTCWTForwardTypeActual.__name__ != 'Any':  # Проверка на Any, если DTCWTForward = Any
-                dtcwt_fwd = DTCWTForwardTypeActual(J=1, biort='near_sym_a', qshift='qshift_a').to(device)
-                logging.info("PyTorch DTCWTForward instance created in main.")
-            else:  # Если это Any или заглушка без __init__
-                raise TypeError("Тип DTCWTForward является Any или неполной заглушкой.")
-        except Exception as e_dtcwt:  # Ловим более общие ошибки инициализации
-            logging.critical(f"Failed to init DTCWTForward in main: {e_dtcwt}", exc_info=True)
-            print(f"ОШИБКА: Failed to init DTCWTForward: {e_dtcwt}")
+            dtcwt_fwd = DTCWTForward(J=1, biort='near_sym_a', qshift='qshift_a').to(device)
+            logging.info("PyTorch DTCWTForward instance created.")
+        except Exception as e_dtcwt:
+            logging.critical(f"Failed to init DTCWTForward: {e_dtcwt}", exc_info=True)
             return 1
-    elif PYTORCH_WAVELETS_AVAILABLE and DTCWTForwardTypeActual is None:  # Флаг есть, а типа нет
-        logging.critical("Тип DTCWTForward не найден (None), хотя PYTORCH_WAVELETS_AVAILABLE=True.")
-        return 1
-    else:  # PYTORCH_WAVELETS_AVAILABLE is False
-        logging.critical("PyTorch Wavelets недоступен (проверено в main)!")
+    else:
+        logging.critical("PyTorch Wavelets недоступен!")
         return 1
 
-    # BCH_CODE_OBJECT должен быть инициализирован в __main__ или глобально
-    # Если он None здесь, то ECC не будет работать, даже если GALOIS_AVAILABLE=True
-
-    # Определение имени входного файла (используем глобальные константы)
     input_base = f"watermarked_ffmpeg_t9"
     input_video = input_base + INPUT_EXTENSION
+    original_id: Optional[str] = None
+
+    if os.path.exists(ORIGINAL_WATERMARK_FILE):
+        try:
+            with open(ORIGINAL_WATERMARK_FILE, "r", encoding='utf-8') as f_id:
+                original_id = f_id.read().strip()
+            if not (original_id and len(original_id) == PAYLOAD_LEN_BYTES * 2):
+                logging.error(f"ID в '{ORIGINAL_WATERMARK_FILE}' неверной длины.")
+                original_id = None
+            else:
+                int(original_id, 16)
+                logging.info(f"Original ID loaded: {original_id}")
+        except ValueError:
+            logging.error(f"ID в '{ORIGINAL_WATERMARK_FILE}' не hex.");
+            original_id = None
+        except Exception as e_read_id:
+            logging.error(f"Ошибка чтения ID: {e_read_id}");
+            original_id = None
+    else:
+        logging.warning(f"Файл ID '{ORIGINAL_WATERMARK_FILE}' не найден.")
 
     logging.info(f"--- Начало извлечения из файла: '{input_video}' ---")
     if not os.path.exists(input_video):
-        logging.critical(f"Входной файл не найден: '{input_video}'.")
-        print(f"ОШИБКА: Файл не найден: '{input_video}'")
+        logging.critical(f"Входной файл не найден: '{input_video}'.");
+        print(f"ОШИБКА: Файл не найден: '{input_video}'");
         return 1
 
-    # --- Чтение эталонного хеша из XMP ---
-    original_id_hash_from_xmp: Optional[str] = None
-    exiftool_path_var = shutil.which("exiftool.exe") or shutil.which("exiftool")
-    if not exiftool_path_var and os.path.isfile(r"C:\exiftool-13.29_64\exiftool.exe"):
-        exiftool_path_var = r"C:\exiftool-13.29_64\exiftool.exe"
-
-    if exiftool_path_var:
-        # XMP_TAG_NAME_FOR_HASH должна быть определена глобально
-        tag_to_read_from_xmp = str(globals().get('XMP_TAG_NAME_FOR_HASH', "XMP-xmp:TrackMetaHash"))
-        cmd_exiftool_run = [exiftool_path_var, "-s3", f"-{tag_to_read_from_xmp}", input_video]
-        logging.info(f"Чтение хеша ID из XMP: {' '.join(cmd_exiftool_run)}")
-        try:
-            result_exiftool_run = subprocess.run(cmd_exiftool_run, check=False, capture_output=True, text=True,
-                                                 encoding='utf-8', errors='replace', timeout=10)
-            if result_exiftool_run.returncode == 0:
-                original_id_hash_from_xmp = result_exiftool_run.stdout.strip()
-                if original_id_hash_from_xmp:
-                    if len(original_id_hash_from_xmp) == 64:  # SHA256
-                        logging.info(f"Эталонный хеш ID из XMP: {original_id_hash_from_xmp}")
-                        print(f"  Эталонный хеш из XMP: {original_id_hash_from_xmp}")
-                    else:
-                        logging.warning(
-                            f"XMP хеш имеет неверную длину ({len(original_id_hash_from_xmp)}): '{original_id_hash_from_xmp}'. Сброшен на None.")
-                        original_id_hash_from_xmp = None
-                else:
-                    logging.info(f"Тег XMP '{tag_to_read_from_xmp}' найден, но он пуст в файле '{input_video}'.")
-            elif result_exiftool_run.returncode == 1 and not result_exiftool_run.stdout.strip() and \
-                    (
-                            "File not found" in result_exiftool_run.stderr or "Warning: Sorry, TrackMetaHash is not writable" in result_exiftool_run.stderr or "0 image files read" in result_exiftool_run.stderr):
-                # Exiftool часто возвращает 1 и stderr, если тег просто не найден
-                logging.info(
-                    f"ExifTool: Тег '{tag_to_read_from_xmp}' не найден в файле '{input_video}'. stderr: {result_exiftool_run.stderr.strip()}")
-                print(f"  ПРЕДУПРЕЖДЕНИЕ: Тег '{tag_to_read_from_xmp}' не найден в XMP.")
-            else:
-                logging.warning(
-                    f"ExifTool не смог прочитать тег '{tag_to_read_from_xmp}' (код {result_exiftool_run.returncode}). Stderr: {result_exiftool_run.stderr.strip()}")
-        except subprocess.TimeoutExpired:
-            logging.error(f"ExifTool: таймаут при чтении XMP из '{input_video}'.")
-            print(f"ОШИБКА: ExifTool завис при чтении XMP.")
-        except FileNotFoundError:  # Если exiftool_path_var был не None, но файл не найден при запуске subprocess
-            logging.error(f"ExifTool не найден по пути (при запуске subprocess): '{exiftool_path_var}'.")
-            print(f"ОШИБКА: ExifTool не найден по пути '{exiftool_path_var}'.")
-        except Exception as e_exif_main_run:
-            logging.error(f"Общая ошибка при чтении XMP с ExifTool: {e_exif_main_run}", exc_info=True)
-            print(f"ОШИБКА: Общая проблема при чтении XMP.")
-    else:
-        logging.warning("ExifTool не найден. Невозможно прочитать эталонный хеш из XMP.")
-        print("ПРЕДУПРЕЖДЕНИЕ: ExifTool не найден.")
-
     # --- Расчет необходимого числа кадров для чтения ---
-    payload_len_bits_run = PAYLOAD_LEN_BYTES * 8
-    message_len_for_ecc_run = payload_len_bits_run
-    actual_codeword_len_if_ecc_run = message_len_for_ecc_run
-    packet_len_if_raw_run = payload_len_bits_run
-    ecc_possible_for_first_run = False
+    payload_len_bits = PAYLOAD_LEN_BYTES * 8
+    packet_len_if_ecc = payload_len_bits
+    packet_len_if_raw = payload_len_bits
+    ecc_possible_for_first_calc = False
 
     if USE_ECC and GALOIS_AVAILABLE and BCH_CODE_OBJECT is not None:
         try:
-            # Проверяем, что BCH_CODE_OBJECT действительно объект BCH, а не заглушка без атрибутов
-            if hasattr(BCH_CODE_OBJECT, 'k') and hasattr(BCH_CODE_OBJECT, 'n') and \
-                    isinstance(BCH_CODE_OBJECT.k, int) and isinstance(BCH_CODE_OBJECT.n, int):
-                if message_len_for_ecc_run <= BCH_CODE_OBJECT.k:
-                    actual_codeword_len_if_ecc_run = BCH_CODE_OBJECT.n
-                    ecc_possible_for_first_run = True
-            else:
-                logging.warning("BCH_CODE_OBJECT не имеет атрибутов k/n или они не int. ECC расчет неточен.")
-        except Exception as e_bch_main_run:  # Более общее исключение
-            logging.error(f"Ошибка доступа к параметрам BCH_CODE_OBJECT в main: {e_bch_main_run}")
-            ecc_possible_for_first_run = False
+            if payload_len_bits <= BCH_CODE_OBJECT.k:
+                packet_len_if_ecc = BCH_CODE_OBJECT.n
+                ecc_possible_for_first_calc = True
+        except Exception:
+            pass
 
-    expect_hybrid_run_calc = current_expect_hybrid_ecc
-    if expect_hybrid_run_calc and not ecc_possible_for_first_run:
-        expect_hybrid_run_calc = False
+    current_expect_hybrid_ecc = globals().get('expect_hybrid_ecc', True)
 
-    max_bits_to_extract_run = 0
-    if expect_hybrid_run_calc:
-        max_bits_to_extract_run = actual_codeword_len_if_ecc_run + max(0,
-                                                                       MAX_TOTAL_PACKETS_global - 1) * packet_len_if_raw_run
+    expect_hybrid_for_calc = current_expect_hybrid_ecc
+    if expect_hybrid_for_calc and not ecc_possible_for_first_calc:
+        expect_hybrid_for_calc = False
+
+    max_possible_bits = 0
+    if expect_hybrid_for_calc:
+        max_possible_bits = packet_len_if_ecc + max(0, MAX_TOTAL_PACKETS_global - 1) * packet_len_if_raw
     else:
-        len_each_pkt_run = actual_codeword_len_if_ecc_run if USE_ECC and ecc_possible_for_first_run and not expect_hybrid_run_calc else packet_len_if_raw_run
-        max_bits_to_extract_run = MAX_TOTAL_PACKETS_global * len_each_pkt_run
+        current_packet_len_for_calc = packet_len_if_ecc if USE_ECC and ecc_possible_for_first_calc else packet_len_if_raw
+        max_possible_bits = MAX_TOTAL_PACKETS_global * current_packet_len_for_calc
 
-    if BITS_PER_PAIR <= 0:
-        logging.critical(f"BITS_PER_PAIR ({BITS_PER_PAIR}) <= 0!")
-        print(f"ОШИБКА: BITS_PER_PAIR ({BITS_PER_PAIR}) <= 0!")
-        return 1
-    pairs_needed_run = ceil(max_bits_to_extract_run / BITS_PER_PAIR) if max_bits_to_extract_run > 0 else 0
+    if BITS_PER_PAIR <= 0: logging.critical("BITS_PER_PAIR <= 0!"); return 1
+    pairs_needed_for_extract = ceil(max_possible_bits / BITS_PER_PAIR) if max_possible_bits > 0 else 0
 
-    if pairs_needed_run == 0:
-        logging.error("Не требуется обрабатывать ни одной пары (согласно расчетам в main).")
-        print("ОШИБКА: Не требуется обрабатывать ни одной пары для извлечения.")
+    if pairs_needed_for_extract == 0:
+        logging.error("Не требуется обрабатывать ни одной пары (согласно расчетам).")
         return 1
-    num_frames_to_read_final = pairs_needed_run * 2
+
+    num_frames_to_read = pairs_needed_for_extract * 2
     logging.info(
-        f"Требуется обработать {pairs_needed_run} пар, необходимо прочитать {num_frames_to_read_final} кадров.")
+        f"Требуется обработать {pairs_needed_for_extract} пар, необходимо прочитать {num_frames_to_read} кадров.")
 
-    read_start_time_script = time.time()
-    frames_for_extraction_final = read_required_frames_opencv(input_video, num_frames_to_read_final)
-    read_time_script = time.time() - read_start_time_script
+    read_start_time = time.time()
+    logging.info(f"Чтение первых {num_frames_to_read} кадров с помощью OpenCV из '{input_video}'...")
+    frames_for_extraction = read_required_frames_opencv(input_video, num_frames_to_read)
+    read_time = time.time() - read_start_time
 
-    if frames_for_extraction_final is None:
-        logging.critical("Критическая ошибка при чтении кадров в main. Прерывание.")
-        print("ОШИБКА: Не удалось прочитать кадры из видео.")
-        return 1
-    logging.info(f"Прочитано {len(frames_for_extraction_final)} кадров для извлечения за {read_time_script:.2f} сек.")
-    if len(frames_for_extraction_final) < 2:
-        logging.error(f"Прочитано менее 2 кадров ({len(frames_for_extraction_final)}). Невозможно извлечь ЦВЗ.")
-        print(f"ОШИБКА: Прочитано слишком мало кадров ({len(frames_for_extraction_final)}).")
+    if frames_for_extraction is None:
+        logging.critical("Критическая ошибка при чтении необходимых кадров. Прерывание.")
         return 1
 
-    # --- Вызов основной функции извлечения ---
-    final_hex_candidates = extract_watermark_from_video(
-        frames=frames_for_extraction_final,
+    actual_frames_read = len(frames_for_extraction)
+    logging.info(f"Прочитано {actual_frames_read} кадров для извлечения за {read_time:.2f} сек.")
+
+    if actual_frames_read < 2:
+        logging.error(f"Прочитано менее 2 кадров ({actual_frames_read}). Невозможно извлечь ЦВЗ.")
+        return 1
+    if actual_frames_read < num_frames_to_read:
+        logging.warning(f"Прочитано кадров ({actual_frames_read}) меньше, чем требовалось ({num_frames_to_read}).")
+
+    # --- Вызов основной функции извлечения со списком кадров ---
+    extracted_bytes = extract_watermark_from_video(
+        frames=frames_for_extraction,
         nr=N_RINGS,
         nrtu=NUM_RINGS_TO_USE,
         bp=BITS_PER_PAIR,
@@ -1587,212 +1223,122 @@ def main() -> int:
         plb=PAYLOAD_LEN_BYTES,
         mw=MAX_WORKERS_EXTRACT
     )
-    if frames_for_extraction_final:
-        del frames_for_extraction_final
-        gc.collect()
 
-    # --- Вывод и сравнение результатов ---
-    print(f"\n--- Результаты Извлечения (main) ---")
+    # --- Вывод результатов ---
+    print(f"\n--- Extraction Results ---")
+    extracted_hex: Optional[str] = None
+    if extracted_bytes:
+        if len(extracted_bytes) == PAYLOAD_LEN_BYTES:
+            extracted_hex = extracted_bytes.hex()
+            print(f"  Payload Length OK.")
+            print(f"  Decoded ID (Hex): {extracted_hex}")
+            logging.info(f"Decoded ID: {extracted_hex}")
+        else:
+            print(f"  ERROR: Decoded length mismatch! {len(extracted_bytes)}B != {PAYLOAD_LEN_BYTES}B.")
+            logging.error(f"Decoded length mismatch!")
+    else:
+        print(f"  Extraction FAILED (No payload).")
+        logging.error("Extraction failed/No payload.")
+
     final_match_status = False
-
-    if not final_hex_candidates:
-        print(f"  Извлечение НЕ УДАЛОСЬ (нет кандидатов).")
-        logging.error("Извлечение не удалось/нет кандидатов от extract_watermark_from_video.")
-        if original_id_hash_from_xmp:
-            print(f"  (Эталонный хеш из XMP был: {original_id_hash_from_xmp})")
+    if original_id:
+        print(f"  Original ID (Hex): {original_id}")
+        if extracted_hex and extracted_hex == original_id:
+            print("\n  >>> ID MATCH <<<")
+            logging.info("ID MATCH.")
+            final_match_status = True
+        else:
+            print("\n  >>> !!! ID MISMATCH or FAILED !!! <<<")
+            logging.warning("ID MISMATCH or Extraction Failed.")
     else:
-        print(f"  Получено кандидатов: {len(final_hex_candidates)}")
-        original_id_from_txt: Optional[str] = None
-        if os.path.exists(ORIGINAL_WATERMARK_FILE):
-            try:
-                with open(ORIGINAL_WATERMARK_FILE, "r", encoding='utf-8') as f_id_comp_main:
-                    original_id_from_txt = f_id_comp_main.read().strip()
-                if not (original_id_from_txt and len(original_id_from_txt) == PAYLOAD_LEN_BYTES * 2):
-                    original_id_from_txt = None
-                else:
-                    bytes.fromhex(original_id_from_txt)
-            except Exception:
-                original_id_from_txt = None
+        print("\n  Original ID unavailable for comparison.")
 
-        if original_id_from_txt:
-            print(f"  Оригинальный ID из '{ORIGINAL_WATERMARK_FILE}': {original_id_from_txt}")
+    logging.info("--- Extraction Main Process Finished ---")
+    total_main_time = time.time() - main_start_time
+    logging.info(f"--- Total Extractor Time: {total_main_time:.2f} sec ---")
+    print(f"\nExtraction finished. Log: {LOG_FILENAME}")
 
-        for idx, extracted_hex_candidate_str in enumerate(final_hex_candidates):
-            print(f"  Кандидат {idx + 1} (Hex): {extracted_hex_candidate_str}")
-            try:
-                candidate_as_bytes_val = bytes.fromhex(extracted_hex_candidate_str)
-                if len(candidate_as_bytes_val) != PAYLOAD_LEN_BYTES:
-                    logging.error(f"Кандидат {idx + 1} ('{extracted_hex_candidate_str}') неверной длины.")
-                    continue
-
-                calculated_hash_of_candidate_val = hashlib.sha256(candidate_as_bytes_val).hexdigest()
-                print(f"    Хеш кандидата {idx + 1} : {calculated_hash_of_candidate_val}")
-
-                if original_id_hash_from_xmp:
-                    if calculated_hash_of_candidate_val == original_id_hash_from_xmp:
-                        print(f"    >>> ХЕШ КАНДИДАТА {idx + 1} СОВПАЛ С XMP (ID MATCH) <<<")
-                        final_match_status = True
-                    else:
-                        print(f"    !!! ХЕШ КАНДИДАТА {idx + 1} НЕ СОВПАЛ С XMP !!!")
-                elif original_id_from_txt:
-                    if extracted_hex_candidate_str == original_id_from_txt:
-                        print(f"    >>> КАНДИДАТ {idx + 1} СОВПАЛ С ID ИЗ TXT ФАЙЛА (ID MATCH) <<<")
-                        final_match_status = True
-                    else:
-                        print(f"    !!! КАНДИДАТ {idx + 1} НЕ СОВПАЛ С ID ИЗ TXT ФАЙЛА !!!")
-                else:
-                    print(f"    Эталонный ID (XMP или TXT) недоступен для сравнения с кандидатом {idx + 1}.")
-            except ValueError:
-                logging.error(f"Кандидат {idx + 1} ('{extracted_hex_candidate_str}') не HEX.")
-
-        if not original_id_hash_from_xmp and not original_id_from_txt and final_hex_candidates:
-            logging.info(f"Эталонный ID не найден, но извлечены кандидаты: {', '.join(final_hex_candidates)}")
-
-    if final_match_status:
-        print("\n  ИТОГ: УСПЕШНОЕ ИЗВЛЕЧЕНИЕ И СОВПАДЕНИЕ!")
-    else:
-        print("\n  ИТОГ: НЕУДАЧА ИЗВЛЕЧЕНИЯ ИЛИ НЕСОВПАДЕНИЕ ID.")
-
-    logging.info("--- Основной Процесс Извлечения Завершен ---")
-    total_main_time_script_run = time.time() - main_start_time
-    logging.info(f"--- Общее Время Работы Экстрактора: {total_main_time_script_run:.2f} сек ---")
-
-    logging.info(f"Извлечение завершено. Лог: {LOG_FILENAME}")  # Используем глобальную LOG_FILENAME
-    print(f"\nИзвлечение завершено. Лог: {LOG_FILENAME}")
-
-    return 0 if final_match_status else 1
+    return 0 if extracted_bytes is not None else 1
 
 
-# --- Блок if __name__ == "__main__": (возвращен к простому виду) ---
 if __name__ == "__main__":
-    # --- Настройка логирования (один раз при старте скрипта) ---
-    # LOG_FILENAME должна быть определена глобально
-    if not logging.getLogger().hasHandlers():
-        logging.basicConfig(filename=LOG_FILENAME,
-                            filemode='w',
-                            level=logging.INFO,
-                            format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
-    # Устанавливаем желаемый уровень логирования для всего приложения
-    # logging.getLogger().setLevel(logging.DEBUG) # Для отладки
-    logging.getLogger().setLevel(logging.INFO)  # Для релиза
+    # --- Настройка логирования ---
+    if not logging.getLogger().handlers:
+        for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
+        logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO,
+                            format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
+    logging.getLogger().setLevel(logging.INFO)
 
-    # --- Первичные проверки зависимостей (флаги должны быть установлены в начале файла) ---
-    # Эти флаги (CV2_AVAILABLE, PYTORCH_WAVELETS_AVAILABLE и т.д.)
-    # устанавливаются при попытке импорта в самом начале файла.
-    missing_libs_on_start = []
-    if not CV2_AVAILABLE: missing_libs_on_start.append("OpenCV (cv2)")
-    if not PYTORCH_WAVELETS_AVAILABLE: missing_libs_on_start.append("pytorch_wavelets")
-    if not TORCH_DCT_AVAILABLE: missing_libs_on_start.append("torch-dct")
-    # Можно добавить сюда же numpy, torch, если их импорт может быть проблемой
-    # и вы не хотите, чтобы скрипт падал позже с ImportError
+    # --- Проверка зависимостей ---
+    missing_libs_critical = []
+    if not globals().get('PYAV_AVAILABLE', False) and 'av' not in sys.modules: missing_libs_critical.append(
+        "PyAV (av)")  # Проверка, если флаг не определен
+    if not globals().get('PYTORCH_WAVELETS_AVAILABLE', False): missing_libs_critical.append("pytorch_wavelets")
+    if not globals().get('TORCH_DCT_AVAILABLE', False): missing_libs_critical.append("torch-dct")
     try:
-        __import__("numpy")
+        import cv2
     except ImportError:
-        missing_libs_on_start.append("numpy")
+        missing_libs_critical.append("OpenCV (cv2)")
     try:
-        __import__("torch")
+        import numpy
     except ImportError:
-        missing_libs_on_start.append("torch")
+        missing_libs_critical.append("NumPy")
+    try:
+        import torch
+    except ImportError:
+        missing_libs_critical.append("PyTorch")
 
-    if missing_libs_on_start:
-        error_msg_script_start = f"ОШИБКА: Отсутствуют КРИТИЧЕСКИ важные библиотеки: {', '.join(missing_libs_on_start)}."
-        print(error_msg_script_start);
-        logging.critical(error_msg_script_start);
+    if missing_libs_critical:
+        error_msg = f"ОШИБКА: Отсутствуют КРИТИЧЕСКИ важные библиотеки: {', '.join(missing_libs_critical)}."
+        print(error_msg);
+        logging.critical(error_msg);
         sys.exit(1)
 
-    if USE_ECC and not GALOIS_AVAILABLE:  # Глобальные USE_ECC и GALOIS_AVAILABLE
-        warning_msg_script_start = "\nПРЕДУПРЕЖДЕНИЕ: USE_ECC=True, но 'galois' не доступен. ECC не будет работать."
-        print(warning_msg_script_start);
-        logging.warning(warning_msg_script_start.strip())
+    if globals().get('USE_ECC', False) and not globals().get('GALOIS_AVAILABLE', False):
+        print("\nПРЕДУПРЕЖДЕНИЕ: ECC включен, но библиотека 'galois' не найдена/не работает.")
+        logging.warning("ECC включен, но Galois недоступен.")
 
-    # --- Инициализация BCH_CODE_OBJECT (один раз при старте, если нужен) ---
-    # BCH_M и BCH_T должны быть определены глобально
-    if USE_ECC and GALOIS_AVAILABLE and BCH_CODE_OBJECT is None:
-        try:
-            _m_glob = BCH_M
-            _t_glob = BCH_T
-            _n_bch_glob = (1 << _m_glob) - 1
-            _d_bch_glob = 2 * _t_glob + 1
+    # --- Профилирование ---
+    DO_PROFILING = False
+    profiler_instance = None
+    if DO_PROFILING:
+        if 'KERNPROF_VAR' not in os.environ and 'profile' not in globals() and 'cProfile' in sys.modules:  # Проверяем импорт cProfile
+            profiler_instance = cProfile.Profile();
+            profiler_instance.enable()
+            print("cProfile профилирование включено.")
+            logging.info("cProfile профилирование включено.")
+        elif 'profile' in globals() and callable(globals()['profile']):
+            print("line_profiler активен (через декоратор @profile). cProfile не будет запущен.")
+            logging.info("line_profiler активен. cProfile не запущен.")
 
-            expected_k_glob = -1
-            if _t_glob == 5:
-                expected_k_glob = 215
-            elif _t_glob == 7:
-                expected_k_glob = 201
-            elif _t_glob == 9:
-                expected_k_glob = 187
-            elif _t_glob == 11:
-                expected_k_glob = 173
-            elif _t_glob == 15:
-                expected_k_glob = 131
-
-            if expected_k_glob != -1 and GALOIS_IMPORTED:  # GALOIS_IMPORTED - флаг успешного импорта
-                BCHTypeGlobal = globals().get('BCH_TYPE')  # Получаем тип BCH
-                if BCHTypeGlobal and BCHTypeGlobal.__name__ != 'BCHPlaceholder':  # Убедимся, что это не заглушка
-                    temp_bch_glob = BCHTypeGlobal(_n_bch_glob, d=_d_bch_glob)
-                    if hasattr(temp_bch_glob, 'k') and hasattr(temp_bch_glob, 't') and \
-                            temp_bch_glob.k == expected_k_glob and temp_bch_glob.t == _t_glob:
-                        BCH_CODE_OBJECT = temp_bch_glob  # Присваиваем глобальной переменной
-                        logging.info(
-                            f"BCH_CODE_OBJECT успешно инициализирован глобально: n={BCH_CODE_OBJECT.n}, k={BCH_CODE_OBJECT.k}, t={BCH_CODE_OBJECT.t}")
-                    else:
-                        logging.error(
-                            f"Ошибка параметров при глобальной инициализации BCH: ожидалось k={expected_k_glob}, t={_t_glob}.")
-                        BCH_CODE_OBJECT = None  # Явно None, если ошибка
-            else:
-                logging.error(
-                    f"Невозможно инициализировать BCH_CODE_OBJECT глобально (ожидаемое k или galois не импортирован).")
-                BCH_CODE_OBJECT = None
-        except Exception as e_bch_init_global:
-            logging.error(f"Ошибка при глобальной инициализации BCH_CODE_OBJECT: {e_bch_init_global}", exc_info=True)
-            BCH_CODE_OBJECT = None
-
-            # --- Профилирование (если нужно) ---
-    DO_PROFILING_SCRIPT_RUN = False
-    profiler_instance_script_run = None
-    if DO_PROFILING_SCRIPT_RUN:
-        try:
-            import cProfile
-            import pstats
-
-            if 'KERNPROF_VAR' not in os.environ and (
-                    'profile' not in globals() or not callable(globals().get('profile'))):
-                profiler_instance_script_run = cProfile.Profile()
-                profiler_instance_script_run.enable()
-                print("cProfile профилирование включено.")
-            else:
-                print("line_profiler (@profile) уже активен или KERNPROF_VAR. cProfile не запускается.")
-        except ImportError:
-            DO_PROFILING_SCRIPT_RUN = False
-
-            # --- Запуск main ---
-    exit_code_script_run_val = 1
+    final_exit_code = 1
     try:
-        exit_code_script_run_val = main()
-    except FileNotFoundError as e_fnf_script_run_exc:
-        print(f"\nОШИБКА: Файл не найден: {e_fnf_script_run_exc}")
-        logging.critical(f"FileNotFoundError в __main__ (при вызове main()): {e_fnf_script_run_exc}", exc_info=True)
-    except torch.cuda.OutOfMemoryError as e_oom_script_run_exc:
-        print(f"\nОШИБКА: Недостаточно памяти CUDA: {e_oom_script_run_exc}")
-        logging.critical(f"torch.cuda.OutOfMemoryError в __main__ (при вызове main()): {e_oom_script_run_exc}",
-                         exc_info=True)
-        if torch.cuda.is_available(): torch.cuda.empty_cache()
-    except Exception as e_global_script_run_exc:
-        print(f"\nКРИТИЧЕСКАЯ НЕОБРАБОТАННАЯ ОШИБКА: {e_global_script_run_exc}")
-        logging.critical(f"Необработанная ошибка в __main__ (при вызове main()): {e_global_script_run_exc}",
-                         exc_info=True)
+        final_exit_code = main()
+    except FileNotFoundError as e_fnf_main:
+        print(f"\nОШИБКА: Файл не найден: {e_fnf_main}")
+        logging.critical(f"FileNotFoundError в __main__: {e_fnf_main}", exc_info=True)
+    except Exception as e_global_main:
+        print(f"\nКРИТИЧЕСКАЯ НЕОБРАБОТАННАЯ ОШИБКА: {e_global_main}")
+        logging.critical(f"Необработанная ошибка в __main__: {e_global_main}", exc_info=True)
     finally:
-        if DO_PROFILING_SCRIPT_RUN and profiler_instance_script_run is not None:
-            profiler_instance_script_run.disable()
+        if DO_PROFILING and profiler_instance is not None:
+            profiler_instance.disable()
+            logging.info("cProfile профилирование выключено.")
+            stats_obj = pstats.Stats(profiler_instance).strip_dirs().sort_stats("cumulative")
+            print("\n--- Статистика Профилирования (cProfile, Top 30) ---");
+            stats_obj.print_stats(30)
+            profile_prof_file = f"profile_extract_main_t{BCH_T if 'BCH_T' in globals() else 'X'}.prof"
+            profile_txt_file = f"profile_extract_main_t{BCH_T if 'BCH_T' in globals() else 'X'}.txt"
             try:
-                stats_run_script = pstats.Stats(profiler_instance_script_run).strip_dirs().sort_stats("cumulative")
-                print("\n--- Статистика Профилирования ---")
-                stats_run_script.print_stats(30)
-                # ... (код сохранения статистики в файл, если нужно) ...
-            except Exception as e_pstat_run_script:
-                logging.error(f"Ошибка сохранения/вывода профиля: {e_pstat_run_script}")
+                stats_obj.dump_stats(profile_prof_file)
+                with open(profile_txt_file, 'w', encoding='utf-8') as f_pstats:
+                    ps = pstats.Stats(profiler_instance, stream=f_pstats).strip_dirs().sort_stats('cumulative');
+                    ps.print_stats()
+                print(f"Статистика профилирования сохранена: {profile_prof_file}, {profile_txt_file}")
+                logging.info(f"Статистика профилирования сохранена: {profile_prof_file}, {profile_txt_file}")
+            except Exception as e_pstats_save:
+                logging.error(f"Ошибка сохранения статистики: {e_pstats_save}")
 
-        logging.info(f"Скрипт watermark_extractor.py завершен с кодом выхода {exit_code_script_run_val}.")
-        print(f"\nСкрипт завершен с кодом выхода {exit_code_script_run_val}.")
-        sys.exit(exit_code_script_run_val)
+        logging.info(f"Скрипт watermark_extractor.py завершен с кодом выхода {final_exit_code}.")
+        print(f"\nСкрипт завершен с кодом выхода {final_exit_code}.")
+        sys.exit(final_exit_code)
