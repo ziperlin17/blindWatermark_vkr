@@ -112,9 +112,9 @@ DEFAULT_AUDIO_CODEC_FOR_FFMPEG: str = "aac"
 FALLBACK_CONTAINER_EXT_FINAL: str = ".mkv"
 
 
-LAMBDA_PARAM: float = 0.05
+LAMBDA_PARAM: float = 0.07
 ALPHA_MIN: float = 1.13
-ALPHA_MAX: float = 1.28
+ALPHA_MAX: float = 1.3
 N_RINGS: int = 8
 MAX_THEORETICAL_ENTROPY = 8.0
 EMBED_COMPONENT: int = 2 # Cb
@@ -214,13 +214,13 @@ except Exception as import_err:
     BCH_CODE_OBJECT = None
     logging.error(f"galois: Ошибка импорта: {import_err}", exc_info=True)
 
-# --- Настройка логирования ---
+#Настройка логирования
 for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
 logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO,
                     format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
 logging.getLogger().setLevel(logging.DEBUG)
 
-# --- Логирование конфигурации ---
+#Логирование конфигурации
 effective_use_ecc = USE_ECC and GALOIS_AVAILABLE
 logging.info(f"--- Запуск Скрипта Встраивания (PyTorch Wavelets) ---")
 logging.info(f"PyTorch Wavelets Доступно: {PYTORCH_WAVELETS_AVAILABLE}")
@@ -244,12 +244,11 @@ if NUM_RINGS_TO_USE != BITS_PER_PAIR: logging.warning(
     f"NUM_RINGS_TO_USE ({NUM_RINGS_TO_USE}) != BITS_PER_PAIR ({BITS_PER_PAIR}).")
 
 
-# --- Базовые Функции ---
+#Базовые функции
 
 def dct1d_torch(s_tensor: torch.Tensor) -> torch.Tensor:
     """1D DCT-II используя torch-dct."""
     if not TORCH_DCT_AVAILABLE: raise RuntimeError("torch-dct не доступен")
-    # dct ожидает тензор и применяет преобразование к последнему измерению
     return dct_torch.dct(s_tensor, norm='ortho')
 
 def idct1d_torch(c_tensor: torch.Tensor) -> torch.Tensor:
@@ -269,7 +268,7 @@ def svd_torch(tensor_1d: torch.Tensor) -> Tuple[Optional[torch.Tensor], Optional
         logging.error(f"PyTorch SVD error: {e}", exc_info=True)
         return None, None, None
 
-# ---  обертка для PyTorch DTCWT Forward ---
+#обертка для PyTorch DTCWT Forward
 def dtcwt_pytorch_forward(yp_tensor: torch.Tensor, xfm: DTCWTForward, device: torch.device, fn: int = -1) -> Tuple[
     Optional[torch.Tensor], Optional[List[torch.Tensor]]]:
     """Применяет прямое DTCWT PyTorch к одному каналу (2D тензору)."""
@@ -289,7 +288,6 @@ def dtcwt_pytorch_forward(yp_tensor: torch.Tensor, xfm: DTCWTForward, device: to
         with torch.no_grad():
             Yl, Yh = xfm(yp_tensor)
 
-        # Проверка результата
         if Yl is None or Yh is None or not isinstance(Yh, list) or not Yh:
             logging.error(f"[Frame:{fn}] DTCWTForward вернула некорректный результат (None или пустой Yh).")
             return None, None
@@ -307,7 +305,6 @@ def dtcwt_pytorch_forward(yp_tensor: torch.Tensor, xfm: DTCWTForward, device: to
         return None, None
 
 
-# --- функция обертка для PyTorch DTCWT Inverse ---
 def dtcwt_pytorch_inverse(Yl: torch.Tensor, Yh: List[torch.Tensor], ifm: DTCWTInverse, device: torch.device,
                           target_shape: Tuple[int, int], fn: int = -1) -> Optional[np.ndarray]:
     """Применяет обратное DTCWT PyTorch и возвращает NumPy массив float32."""
@@ -318,7 +315,6 @@ def dtcwt_pytorch_inverse(Yl: torch.Tensor, Yh: List[torch.Tensor], ifm: DTCWTIn
         logging.error(f"[Frame:{fn}] Invalid input for inverse (Yl or Yh is None/empty list).")
         return None
     try:
-        # Перемещаем все на device
         Yl = Yl.to(device)
         Yh = [h.to(device) for h in Yh if h is not None and h.numel() > 0]  # Фильтруем пустые/None
         ifm = ifm.to(device)
@@ -353,7 +349,6 @@ def dtcwt_pytorch_inverse(Yl: torch.Tensor, Yh: List[torch.Tensor], ifm: DTCWTIn
             logging.warning(
                 f"[Frame:{fn}] Inverse result shape {reconstructed_X_tensor.shape} < target {target_shape}. Padding might be needed if this causes issues.")
 
-        # Перемещаем на CPU и конвертиртация в NumPy float32
         reconstructed_np = reconstructed_X_tensor.cpu().numpy().astype(np.float32)
 
         if np.any(np.isnan(reconstructed_np)):
@@ -481,45 +476,6 @@ def calculate_entropies_torch(rv_tensor: torch.Tensor, fn: int = -1, ri: int = -
 
     return shannon_entropy, collision_entropy
 
-
-# def calculate_entropies(rv: np.ndarray, fn: int = -1, ri: int = -1) -> Tuple[float, float]:
-#     """
-#         Вычисляет шенноновскую энтропию и энтропию столкновений (по вашей старой формуле)
-#         для одномерного NumPy массива значений пикселей (предположительно, нормализованных).
-#
-#         Эта функция используется для оценки текстурности или сложности области (кольца)
-#         с целью выбора наиболее подходящих областей для встраивания ЦВЗ.
-#
-#         Args:
-#             rv: Одномерный NumPy массив значений пикселей, нормализованных в диапазоне [0, 1].
-#             fn: Номер кадра (для логирования, опционально).
-#             ri: Индекс кольца (для логирования, опционально).
-#
-#         Returns:
-#             Кортеж (float, float):
-#                 - Шенноновская энтропия.
-#                 - Энтропия столкновений (согласно вашей предыдущей реализации).
-#                 Возвращает (0.0, 0.0), если массив пуст или все его значения одинаковы.
-#         """
-#     eps = 1e-12;
-#     shannon_entropy = 0.;
-#     collision_entropy = 0.
-#
-#     if rv.size > 0:
-#         rv_processed = np.clip(rv.copy(), 0.0, 1.0)
-#         if np.all(rv_processed == rv_processed[0]): return 0.0, 0.0
-#
-#         hist, _ = np.histogram(rv_processed, bins=256, range=(0., 1.), density=False)
-#         total_count = rv_processed.size
-#         if total_count > 0:
-#             probabilities = hist / total_count
-#             p = probabilities[probabilities > eps]
-#             if p.size > 0:
-#                 shannon_entropy = -np.sum(p * np.log2(p))
-#                 ee = -np.sum(p * np.exp(1. - p))
-#                 collision_entropy = ee
-#     return shannon_entropy, collision_entropy
-
 def compute_adaptive_alpha_entropy_torch(
         rv_tensor: torch.Tensor,
         ri: int,
@@ -580,51 +536,6 @@ def compute_adaptive_alpha_entropy_torch(
         f"[F:{fn}, R:{ri}] PyTorch Alpha={fa_tensor.item():.4f} (E={ve_tensor.item():.3f},V={lv_tensor.item():.6f})")
     return torch.clip(fa_tensor, alpha_min_t, alpha_max_t)
 
-
-# def compute_adaptive_alpha_entropy(rv: np.ndarray, ri: int, fn: int) -> float:
-#     """
-#         Вычисляет адаптивный коэффициент силы встраивания (альфа) на основе
-#         энтропии и дисперсии значений пикселей в указанном кольце.
-#
-#         Более высокие значения альфы (ближе к ALPHA_MAX) используются для более
-#         текстурированных/сложных областей, что позволяет встроить более сильный
-#         (робастный) сигнал с меньшим риском визуальных искажений. Для гладких
-#         областей используется меньшая альфа (ближе к ALPHA_MIN).
-#
-#         Args:
-#             rv: Одномерный NumPy массив значений пикселей кольца (нормализованных).
-#             ri: Индекс кольца (для логирования).
-#             fn: Номер кадра (для логирования).
-#
-#         Returns:
-#             float: Адаптивный коэффициент альфа в диапазоне [ALPHA_MIN, ALPHA_MAX].
-#                    Возвращает ALPHA_MIN, если данных для статистики недостаточно
-#                    или при ошибках вычисления.
-#         """
-#     if rv.size < 10: return ALPHA_MIN
-#     ve, _ = calculate_entropies(rv, fn, ri)
-#     lv = np.var(rv)
-#     if not np.isfinite(ve) or not np.isfinite(lv):
-#         logging.warning(f"[F:{fn}, R:{ri}] Non-finite entropy ({ve}) or variance ({lv}). Using ALPHA_MIN.")
-#         return ALPHA_MIN
-#
-#     en = np.clip(ve / MAX_THEORETICAL_ENTROPY, 0., 1.)
-#     vmp = 0.005;
-#     vsc = 500
-#     try:
-#         exp_term = np.exp(-vsc * (lv - vmp))
-#     except OverflowError:
-#         exp_term = 0.0
-#     tn = 1. / (1. + exp_term) if (1. + exp_term) != 0 else 1.0
-#
-#     we = .6;
-#     wt = .4
-#     mf = np.clip((we * en + wt * tn), 0., 1.)
-#     fa = ALPHA_MIN + (ALPHA_MAX - ALPHA_MIN) * mf
-#     logging.debug(f"[F:{fn}, R:{ri}] Alpha={fa:.4f} (E={ve:.3f},V={lv:.6f})")
-#     return np.clip(fa, ALPHA_MIN, ALPHA_MAX)
-
-
 def get_fixed_pseudo_random_rings(pi: int, nr: int, ps: int) -> List[int]:
     """
     Генерирует детерминированный псевдослучайный набор индексов колец.
@@ -659,7 +570,7 @@ def get_fixed_pseudo_random_rings(pi: int, nr: int, ps: int) -> List[int]:
     # logging.debug(f"[P:{pi}] Candidate rings: {candidate_indices}")
     return candidate_indices
 
-# --- calculate_perceptual_mask ---
+# calculate_perceptual_mask
 def get_sobel_kernels(device: torch.device, dtype: torch.dtype) -> Tuple[torch.Tensor, torch.Tensor]:
     """Создает ядра Собеля Gx и Gy для свертки."""
     # Gx
@@ -670,8 +581,6 @@ def get_sobel_kernels(device: torch.device, dtype: torch.dtype) -> Tuple[torch.T
     kernel_y = torch.tensor([[-1., -2., -1.],
                              [0., 0., 0.],
                              [1., 2., 1.]], device=device, dtype=dtype)
-    # Для conv2d ядро должно быть (out_channels, in_channels, H, W)
-    # У нас 1 входной канал (изображение) и 1 выходной (карта градиента)
     return kernel_x.unsqueeze(0).unsqueeze(0), kernel_y.unsqueeze(0).unsqueeze(0)
 
 
@@ -679,10 +588,9 @@ def get_gaussian_kernel(kernel_size: int = 11, sigma: float = 5.0, channels: int
                         device: torch.device = torch.device('cpu'), dtype: torch.dtype = torch.float32) -> torch.Tensor:
     """Создает Гауссово ядро для свертки."""
     if kernel_size % 2 == 0:
-        kernel_size += 1  # Должно быть нечетным
+        kernel_size += 1
         logging.warning(f"Размер Гауссова ядра был изменен на {kernel_size}, т.к. он должен быть нечетным.")
 
-    # Создаем 1D Гауссово ядро
     x_cord = torch.arange(kernel_size, device=device, dtype=dtype)
     x_grid = x_cord.repeat(kernel_size).view(kernel_size, kernel_size)
     y_grid = x_grid.t()
@@ -691,32 +599,27 @@ def get_gaussian_kernel(kernel_size: int = 11, sigma: float = 5.0, channels: int
     mean = (kernel_size - 1) / 2.
     variance = sigma ** 2.
 
-    # Гауссова формула
     gaussian_kernel = (1. / (2. * torch.pi * variance)) * \
                       torch.exp(-torch.sum((xy_grid - mean) ** 2., dim=-1) / (2 * variance))
 
-    # Нормализуем ядро, чтобы сумма была равна 1
     gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
 
-    # Делаем его совместимым с conv2d: (out_channels, in_channels/groups, H, W)
-    # Мы хотим, чтобы каждый канал обрабатывался независимо, поэтому out_channels = in_channels = channels, groups = channels
     gaussian_kernel = gaussian_kernel.view(1, 1, kernel_size, kernel_size)
     gaussian_kernel = gaussian_kernel.repeat(channels, 1, 1, 1)  # (channels, 1, H, W)
 
     return gaussian_kernel
 
 
-# --- Новая функция calculate_perceptual_mask_torch ---
 def calculate_perceptual_mask_torch(
         ip_tensor: torch.Tensor,
         device: torch.device,
         fn: int = -1,
-        sobel_kernel_x: Optional[torch.Tensor] = None,  # Для кэширования ядер
+        sobel_kernel_x: Optional[torch.Tensor] = None,
         sobel_kernel_y: Optional[torch.Tensor] = None,
         gaussian_kernel_conv: Optional[torch.Tensor] = None,
         gaussian_ksize: int = 11,  # Размер ядра Гаусса
         gaussian_sigma: float = 5.0,  # Сигма Гаусса
-        lambda_param: float = LAMBDA_PARAM  # Используем глобальную LAMBDA_PARAM
+        lambda_param: float = LAMBDA_PARAM
 ) -> torch.Tensor:
     """
     Вычисляет перцептуальную маску для 2D тензора (один канал изображения) на GPU.
@@ -725,8 +628,6 @@ def calculate_perceptual_mask_torch(
     """
     if not isinstance(ip_tensor, torch.Tensor):
         logging.error(f"Mask error F{fn}: Input is not a tensor.")
-        # Возвращаем единичный тензор подходящей формы, если ip_tensor не тензор, или его форма неизвестна
-        # Для безопасности, лучше чтобы вызывающий код гарантировал корректный ip_tensor
         raise ValueError("Input to calculate_perceptual_mask_torch must be a PyTorch tensor.")
 
     original_ndim = ip_tensor.ndim
@@ -737,7 +638,6 @@ def calculate_perceptual_mask_torch(
         tensor_4d = ip_tensor
     else:
         logging.error(f"Mask error F{fn}: Input tensor must be 2D (H,W) or 4D (1,1,H,W), got {ip_tensor.shape}")
-        # Возвращаем единичный тензор, пытаясь сохранить исходную форму если возможно
         return torch.ones_like(ip_tensor, device=device)
 
     if not torch.is_floating_point(tensor_4d):
@@ -747,43 +647,33 @@ def calculate_perceptual_mask_torch(
     if not torch.all(torch.isfinite(tensor_4d)):
         logging.warning(
             f"Mask error F{fn}: Input tensor contains NaN/inf. Clipping might be needed or result unreliable.")
-        # Можно добавить .clamp_(0, 1) здесь, если значения могут выходить за пределы
-        # tensor_4d = torch.nan_to_num(tensor_4d, nan=0.0, posinf=1.0, neginf=0.0) # Замена нечисловых
 
     try:
-        # --- 1. Градиенты Собеля ---
+        #Градиенты Собеля
         if sobel_kernel_x is None or sobel_kernel_y is None:  # Создаем ядра, если не переданы (для кэширования)
             kernel_gx, kernel_gy = get_sobel_kernels(device, tensor_4d.dtype)
         else:
             kernel_gx, kernel_gy = sobel_kernel_x.to(device, tensor_4d.dtype), sobel_kernel_y.to(device,
                                                                                                  tensor_4d.dtype)
 
-        # padding='same' сохраняет размер изображения
-        # F.conv2d ожидает input (B, C_in, H_in, W_in) и weight (C_out, C_in/groups, H_k, W_k)
         grad_x = F.conv2d(tensor_4d, kernel_gx, padding='same')
         grad_y = F.conv2d(tensor_4d, kernel_gy, padding='same')
 
         if not torch.all(torch.isfinite(grad_x)) or not torch.all(torch.isfinite(grad_y)):
             logging.warning(f"Mask warning F{fn}: Sobel gradients contain NaN/inf.")
-            # Заменяем NaN/Inf на 0, чтобы не прерывать вычисления
             grad_x = torch.nan_to_num(grad_x, nan=0.0)
             grad_y = torch.nan_to_num(grad_y, nan=0.0)
 
-        # Величина градиента
+        #Величина градиента
         gradient_magnitude = torch.sqrt(grad_x ** 2 + grad_y ** 2 + 1e-12)  # + eps для стабильности sqrt
 
-        # --- 2. Локальная дисперсия с Гауссовым размытием ---
-        # E[X^2] - (E[X])^2
-        if gaussian_kernel_conv is None:  # Создаем ядро, если не передано
-            # Для Гаусса channels=1, так как мы работаем с одноканальным изображением яркости
+        #Локальная дисперсия с Гауссовым размытием
+        if gaussian_kernel_conv is None:
             gaussian_kernel_conv = get_gaussian_kernel(kernel_size=gaussian_ksize, sigma=gaussian_sigma, channels=1,
                                                        device=device, dtype=tensor_4d.dtype)
         else:
             gaussian_kernel_conv = gaussian_kernel_conv.to(device, tensor_4d.dtype)
 
-        # padding='same' для Гаусса
-        # F.conv2d с groups=channels если ядро имеет channels=1 и мы хотим применить его к каждому каналу независимо.
-        # Но здесь у нас 1 входной канал для tensor_4d (яркость), и ядро Гаусса тоже для 1 канала.
         local_mean = F.conv2d(tensor_4d, gaussian_kernel_conv, padding='same')
         local_mean_sq = F.conv2d(tensor_4d ** 2, gaussian_kernel_conv, padding='same')
 
@@ -793,35 +683,28 @@ def calculate_perceptual_mask_torch(
             local_mean_sq = torch.nan_to_num(local_mean_sq, nan=0.0)
 
         local_variance = local_mean_sq - local_mean ** 2
-        # Защита от отрицательных значений из-за ошибок округления и от NaN в sqrt
         local_std_dev = torch.sqrt(torch.relu(local_variance) + 1e-12)
 
-        # --- 3. Комбинированная сложность ---
         complexity_map = torch.maximum(gradient_magnitude, local_std_dev)
 
-        # --- 4. Нормализация маски ---
-        min_complexity = torch.min(complexity_map)  # Можно использовать torch.amin(complexity_map)
-        max_complexity = torch.max(complexity_map)  # Можно использовать torch.amax(complexity_map)
+        #Нормализация маски
+        min_complexity = torch.min(complexity_map)
+        max_complexity = torch.max(complexity_map)
 
-        # Нормализация в [0, 1]
-        # Защита от деления на ноль, если max_complexity == min_complexity (плоское изображение)
         if (max_complexity - min_complexity) < 1e-9:
             normalized_mask = torch.zeros_like(complexity_map, device=device)
         else:
             normalized_mask = (complexity_map - min_complexity) / (max_complexity - min_complexity)
 
-        # Финальное клиппирование (хотя после нормализации должно быть в [0,1])
         final_mask = torch.clip(normalized_mask, 0., 1.)
 
-        # Возвращаем маску в той же размерности, что и исходный ip_tensor (если он был 2D)
         if original_ndim == 2:
-            return final_mask.squeeze(0).squeeze(0)  # (1,1,H,W) -> (H,W)
-        else:  # Если исходный был 4D (1,1,H,W), возвращаем так же
+            return final_mask.squeeze(0).squeeze(0)
+        else:
             return final_mask
 
     except Exception as e:
         logging.error(f"Perceptual mask (PyTorch) general error F{fn}: {e}", exc_info=True)
-        # Возвращаем единичную маску той же формы, что и входной тензор
         return torch.ones_like(ip_tensor.view_as(tensor_4d) if original_ndim == 2 else ip_tensor, device=device)
 
 
@@ -991,16 +874,16 @@ def check_compatibility_and_choose_output(
     logging.info(f"Проверка совместимости и выбор параметров выхода:")
     logging.info(f"  Вход: Видео='{in_video_codec}', Аудио='{in_audio_codec}' (есть: {has_audio_original})")
 
-    # --- 1. Выбор рекомендуемого CPU-кодера для "головы" (temp_head.mp4) ---
+    #Выбор рекомендуемого CPU-кодера для "головы" (temp_head.mp4)
     recommended_head_video_encoder_lib = DEFAULT_VIDEO_ENCODER_LIB_FOR_HEAD
 
     logging.info(f"  Рекомендуемый видеокодер для 'головы' (temp_file): {recommended_head_video_encoder_lib}")
 
     head_audio_codec_name_assumed = 'aac'
 
-    # --- 2. Определение расширения для ФИНАЛЬНОГО файла и действия для аудио "хвоста" (в FFmpeg) ---
+    #Определение расширения для финального файла и действия для аудио "хвоста"
 
-    final_output_extension = DEFAULT_OUTPUT_CONTAINER_EXT_FINAL  # По умолчанию .mp4
+    final_output_extension = DEFAULT_OUTPUT_CONTAINER_EXT_FINAL
 
     ffmpeg_tail_audio_action = DEFAULT_AUDIO_CODEC_FOR_FFMPEG_TAIL
     if not has_audio_original:
@@ -1025,7 +908,7 @@ def check_compatibility_and_choose_output(
 
 
     final_check_audio_codec = in_audio_codec if ffmpeg_tail_audio_action == 'copy' else ffmpeg_tail_audio_action
-    if final_check_audio_codec == 'none': final_check_audio_codec = None  # Для проверки
+    if final_check_audio_codec == 'none': final_check_audio_codec = None
 
     allowed_codecs_in_final = CODEC_CONTAINER_COMPATIBILITY.get(final_output_extension, set())
 
@@ -1067,7 +950,6 @@ def check_compatibility_and_choose_output(
     return final_output_extension, recommended_head_video_encoder_lib, ffmpeg_tail_audio_action
 
 
-# --- Функция чтения видео ---
 def get_input_metadata(video_path: str) -> Optional[Dict[str, Any]]:
     """
     Читает метаданные из видеофайла с использованием PyAV, включая битрейт аудио
@@ -1159,7 +1041,7 @@ def get_input_metadata(video_path: str) -> Optional[Dict[str, Any]]:
                 return None
             return metadata
 
-        # --- Чтение метаданных контейнера ---
+        #Чтение метаданных контейнера
         if input_container.format:
             metadata['format_name'] = input_container.format.name
         if input_container.duration:
@@ -1167,7 +1049,6 @@ def get_input_metadata(video_path: str) -> Optional[Dict[str, Any]]:
         if input_container.bit_rate:
             pass
 
-        # --- Чтение метаданных видеопотока ---
         if not input_container.streams.video:
             logging.warning("Видеопотоки не найдены PyAV.")
             if not (metadata['width'] > 0 and metadata['height'] > 0):
@@ -1225,7 +1106,6 @@ def get_input_metadata(video_path: str) -> Optional[Dict[str, Any]]:
                     logging.critical("Критичные видео метаданные отсутствуют после всех проверок.")
                     return None
 
-        # --- Чтение метаданных аудиопотока ---
         if not input_container.streams.audio:
             logging.info("Аудиопотоки не найдены PyAV.")
             metadata['has_audio'] = False
@@ -1243,7 +1123,6 @@ def get_input_metadata(video_path: str) -> Optional[Dict[str, Any]]:
                 metadata['audio_layout'] = ctx.layout.name if ctx.layout else None
                 if audio_stream.time_base: metadata['audio_time_base'] = audio_stream.time_base
 
-                # --- Получение аудио битрейта ---
                 audio_bitrate = ctx.bit_rate
                 if audio_bitrate and audio_bitrate > 0:
                     metadata['audio_bitrate'] = audio_bitrate
@@ -1352,7 +1231,7 @@ def read_processing_head(
                 logging.debug(f"  Пакет {packet_count}: пропущен (нет DTS). Stream index: {packet.stream.index}")
                 continue
 
-            # сборка ВСЕх аудиопакеты нужного потока
+            # сборка всех аудиопакеты нужного потока
             if has_target_audio_stream and packet.stream.index == audio_stream_index:
                 try:
                     packet_data = bytes(packet)
@@ -1479,7 +1358,6 @@ def rescale_time(value: Optional[int], old_tb: Optional[Fraction], new_tb: Optio
          logging.warning(f"Rescale warning ({label}): value={value}, old={old_tb}, new={new_tb}. Error: {e}")
          return None
 
-# --- Основная функция записи "Голова + Хвост" ---
 def get_assumed_color_properties(width: int, height: int,
                                  original_tags: Dict[str, Optional[str]]) -> Dict[str, Optional[str]]:
     """
@@ -1578,7 +1456,7 @@ def write_head_only(
     last_encoded_video_frame_pts: int = -1
     video_frame_duration_in_tb: int = 0
 
-    # --- Параметры кодирования, которые будут возвращены ---
+    #Параметры кодирования, которые будут возвращены
     used_encoding_params: Dict[str, Any] = {
         'video_encoder_lib': target_video_encoder_lib,
         'video_options': video_encoder_options.copy() if video_encoder_options else {},
@@ -1625,7 +1503,6 @@ def write_head_only(
         if output_container is None:
             raise av.FFmpegError(f"Не удалось открыть выходной контейнер (av.open вернул None) для '{temp_head_path}'")
 
-        # --- Настройка видеопотока ---
         original_color_tags = {
             'color_space': input_metadata.get('color_space_tag'),
             'color_primaries': input_metadata.get('color_primaries_tag'),
@@ -1653,7 +1530,7 @@ def write_head_only(
             video_stream_out.codec_context.options = used_encoding_params['video_options']
         logging.debug(f"Опции видеокодека для головы: {video_stream_out.codec_context.options}")
 
-        # Установка time_base для видеопотока
+        #time_base для видеопотока
         input_video_time_base = input_metadata.get('video_time_base')
         if input_video_time_base and isinstance(input_video_time_base,
                                                 Fraction) and input_video_time_base.denominator != 0:
@@ -1683,7 +1560,7 @@ def write_head_only(
         logging.debug(
             f"Расчетная длительность одного видеокадра для 'головы' (в video_time_base): {video_frame_duration_in_tb}")
 
-        # --- Настройка аудиопотока---
+        #Настройка аудиопотока
         decoded_audio_frames_for_head: List[av.AudioFrame] = []
         # Оценка длительности головы в секундах для отсечки декодирования аудио
         head_video_duration_estimated_sec = num_head_frames / float(used_encoding_params['video_fps_fraction']) \
@@ -1780,7 +1657,7 @@ def write_head_only(
                     process_audio = False
                     audio_stream_out = None
 
-        # --- Кодирование и мультиплексирование видео ---
+        #Кодирование и мультиплексирование видео
         logging.info(f"Кодирование и мультиплексирование {num_head_frames} видеокадров для 'головы'...")
         encoded_video_frame_count = 0
         current_video_pts_for_frame: int = 0
@@ -1829,10 +1706,9 @@ def write_head_only(
             output_container.mux(encoded_video_packets_flush)
         logging.info(f"Закодировано и записано {encoded_video_frame_count} видеокадров в 'голову'.")
 
-        # Точный расчет длительности видео на основе PTS последнего успешно закодированного кадра и его длительности
+        #Точный расчет длительности видео на основе PTS последнего успешно закодированного кадра и его длительности
         if encoded_video_frame_count > 0 and last_encoded_video_frame_pts >= 0 and video_frame_duration_in_tb > 0 and video_stream_out.time_base:
             try:
-                # Конечный PTS видеопотока = PTS последнего кадра + его длительность
                 effective_last_video_pts = last_encoded_video_frame_pts + video_frame_duration_in_tb
                 duration_value_sec = float(effective_last_video_pts * video_stream_out.time_base)
                 if duration_value_sec >= 0:
@@ -1854,7 +1730,6 @@ def write_head_only(
         else:
             logging.error("Не удалось рассчитать точную видео длительность 'головы'.")
 
-        # --- Кодирование и мультиплексирование аудио (если оно есть) ---
         if process_audio and audio_stream_out and decoded_audio_frames_for_head:
             duration_limit_for_audio_sec = actual_video_duration_sec if (
                         actual_video_duration_sec is not None and actual_video_duration_sec > 0) \
@@ -1892,7 +1767,6 @@ def write_head_only(
                     logging.warning(
                         f"Ошибка кодирования/мультиплексирования аудиокадра {audio_frame_idx} для 'головы': {e_encode_audio_frame}")
 
-            # Flush аудиокодера
             logging.debug("Завершение (flush) аудиокодера для 'головы'...")
             encoded_audio_packets_flush = audio_stream_out.encode(None)
             if encoded_audio_packets_flush:
@@ -2020,14 +1894,14 @@ def concatenate_smart_stitch(
                                             f"{base_name_head}_transition_pid{current_pid}{output_extension}")
         temp_tail_copy_path = os.path.join(output_dir, f"{base_name_head}_tail_copy_pid{current_pid}{output_extension}")
         temp_tail_copy_clean_path = temp_tail_copy_path.replace('_tail_copy_',
-                                                                '_tail_clean_')  # Имя для очищенного хвоста
+                                                                '_tail_clean_')
 
         create_transition = gap_duration > gap_threshold_sec
         transition_created = False
         tail_copy_created = False
         tail_copy_cleaned = False
 
-        # --- Этап 1: Создание Переходного Сегмента ---
+        #Создание переходного сегмента ---
         if create_transition:
             logging.info(
                 f"Создание ПЕРЕКОДИРОВАННОГО переходного сегмента '{temp_transition_path}' (длительность ~{gap_duration:.3f}s)...")
@@ -2106,7 +1980,7 @@ def concatenate_smart_stitch(
                 logging.error("Не удалось создать необходимый переходный сегмент. Отмена операции.")
                 return False
 
-                # --- Этап 2: Создание КОПИРОВАННОГО Хвоста (`temp_tail_copy.mp4`) ---
+                #Создание копии хвоста (`temp_tail_copy.mp4`)
         start_copy_sec = keyframe_tail_start_sec
         logging.info(f"Создание КОПИРОВАННОГО хвоста '{temp_tail_copy_path}', начиная с {start_copy_sec:.9f}s...")
 
@@ -2151,9 +2025,9 @@ def concatenate_smart_stitch(
 
         if not tail_copy_created:
             logging.error("Не удалось создать копированный хвост. Отмена операции.")
-            return False  # Критическая ошибка
+            return False
 
-        # --- Этап 2.5: "Очистка" Копированного Хвоста Перепаковкой ---
+        #"Очистка" копированного хвоста
         path_to_concat_for_tail = temp_tail_copy_path
         if tail_copy_created:
             logging.info(f"Этап 2.5: Очистка/Перепаковка копированного хвоста в '{temp_tail_copy_clean_path}'...")
@@ -2177,14 +2051,12 @@ def concatenate_smart_stitch(
                 else:
                     logging.warning(
                         f"Не удалось очистить хвост (код {result_clean_tail.returncode}). Будет использован неочищенный.\nStderr: {result_clean_tail.stderr}")
-                    # path_to_concat_for_tail остается temp_tail_copy_path
             except Exception as e_clean_tail:
                 logging.warning(
                     f"Не удалось очистить хвост из-за исключения: {e_clean_tail}. Будет использован неочищенный.")
-                # path_to_concat_for_tail остается temp_tail_copy_path
         files_to_concat.append(path_to_concat_for_tail)
 
-        # --- Этап 3: Финальная Склейка (concat демультиплексор с -c copy) ---
+        #Финальная склейка
         logging.info(
             f"Этап 3: Финальная склейка {len(files_to_concat)} сегментов в '{final_output_path}' (с -c copy)...")
         success_concat = False
@@ -2199,7 +2071,6 @@ def concatenate_smart_stitch(
                 list_file_obj.write(list_file_content)
             logging.debug(f"Создан временный файл списка для concat: '{list_file_path}'")
 
-            # Финальная склейка с -c copy для ВСЕХ потоков
             cmd_concat_final = [
                 ffmpeg_path, '-y',
                 '-f', 'concat',
@@ -2253,8 +2124,8 @@ def embed_frame_pair(
         selected_ring_indices: List[int], n_rings: int, frame_number: int,
         use_perceptual_masking: bool, embed_component: int,
         device: torch.device,
-        dtcwt_fwd: 'DTCWTForward',  # Указываем тип для подсказок, если DTCWTForward определен
-        dtcwt_inv: 'DTCWTInverse'  # Указываем тип для подсказок, если DTCWTInverse определен
+        dtcwt_fwd: 'DTCWTForward',
+        dtcwt_inv: 'DTCWTInverse'
 ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """
     Встраивает биты (PyTorch DCT/SVD), используя GPU для адаптивной альфы.
@@ -2272,20 +2143,20 @@ def embed_frame_pair(
         logging.warning(
             f"{prefix_base} Mismatch bits/rings: {len(bits)} vs {len(selected_ring_indices)}. Using min len {min_len_bits_rings}.")
 
-    if min_len_bits_rings == 0:  # Если нет бит для встраивания или колец для использования
+    if min_len_bits_rings == 0:
         logging.debug(f"{prefix_base} No bits/rings to process. Returning original frames.")
-        return frame1_bgr, frame2_bgr  # Возвращаем исходные кадры
+        return frame1_bgr, frame2_bgr
 
     bits_to_embed = bits[:min_len_bits_rings]
     rings_to_process = selected_ring_indices[:min_len_bits_rings]
 
     logging.debug(f"{prefix_base} --- Starting Embedding Pair (PyTorch GPU Alpha) for {len(bits_to_embed)} bits ---")
     try:
-        # 1. Преобразование в Тензоры YCrCb и извлечение компонента
+        #Преобразование в Тензоры YCrCb
         f1_ycrcb_np = cv2.cvtColor(frame1_bgr, cv2.COLOR_BGR2YCrCb)
         f2_ycrcb_np = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2YCrCb)
 
-        # Нормализуем компонент [0, 255] в [0, 1] и переводим в тензор
+        # Нормализуем компонент [0, 255] в [0, 1]
         comp1_np_float = f1_ycrcb_np[:, :, embed_component].astype(np.float32) / 255.0
         comp2_np_float = f2_ycrcb_np[:, :, embed_component].astype(np.float32) / 255.0
 
@@ -2293,7 +2164,7 @@ def embed_frame_pair(
         comp2_tensor = torch.from_numpy(comp2_np_float).to(device=device)
         target_shape_hw = (frame1_bgr.shape[0], frame1_bgr.shape[1])
 
-        # 2. Прямое DTCWT
+        #Прямое DTCWT
         Yl_t, Yh_t = dtcwt_pytorch_forward(comp1_tensor, dtcwt_fwd, device, frame_number)
         Yl_t1, Yh_t1 = dtcwt_pytorch_forward(comp2_tensor, dtcwt_fwd, device, frame_number + 1)
 
@@ -2301,13 +2172,10 @@ def embed_frame_pair(
             logging.error(f"{prefix_base} DTCWT forward failed.")
             return None, None
 
-        # Убираем batch/channel измерения, если они есть (должны быть (1,1,H,W) -> (H,W))
+        # Убираем batch/channel измерения, (1,1,H,W) -> (H,W))
         if Yl_t.dim() > 2: Yl_t = Yl_t.squeeze(0).squeeze(0)
         if Yl_t1.dim() > 2: Yl_t1 = Yl_t1.squeeze(0).squeeze(0)
 
-        # 3. Подготовка к модификации
-        # ring_coords_t и ring_coords_t1 теперь должны быть списками тензоров координат,
-        # полученными из GPU-версии ring_division
         ring_coords_t = ring_division(Yl_t, n_rings, frame_number)
         ring_coords_t1 = ring_division(Yl_t1, n_rings, frame_number + 1)
 
@@ -2317,22 +2185,17 @@ def embed_frame_pair(
 
         if use_perceptual_masking:
             perceptual_mask_tensor = calculate_perceptual_mask_torch(
-                comp1_tensor,  # Передаем исходный компонент (до DTCWT) для маски
+                comp1_tensor,
                 device=device,
                 fn=frame_number
-                # Ядра будут создаваться внутри calculate_perceptual_mask_torch
             )
-            # calculate_perceptual_mask_torch должна вернуть тензор, который уже будет
-            # иметь ту же форму, что и comp1_tensor (H,W).
-            # Нам нужна маска с размерами Yl_t (LL-поддиапазона).
-            # Если Yl_t имеет другие размеры, чем comp1_tensor, маску нужно ресайзить.
             if perceptual_mask_tensor.shape != Yl_t.shape:
                 logging.warning(
                     f"{prefix_base} Perceptual mask shape {perceptual_mask_tensor.shape} (from comp1_tensor) != Yl_t shape {Yl_t.shape}. Resizing mask.")
                 try:
                     perceptual_mask_tensor = F.interpolate(
-                        perceptual_mask_tensor.unsqueeze(0).unsqueeze(0),  # (H,W) -> (1,1,H,W)
-                        size=Yl_t.shape,  # Целевой размер (H_yl, W_yl)
+                        perceptual_mask_tensor.unsqueeze(0).unsqueeze(0),
+                        size=Yl_t.shape,
                         mode='bilinear',
                         align_corners=False
                     ).squeeze(0).squeeze(0)  # (1,1,H_yl,W_yl) -> (H_yl,W_yl)
@@ -2341,13 +2204,13 @@ def embed_frame_pair(
                         f"{prefix_base} Failed to interpolate perceptual mask to Yl_t shape: {e_interp_mask}. Using ones mask.")
                     perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)
         else:
-            perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)  # Единичная маска, если не используется
+            perceptual_mask_tensor = torch.ones_like(Yl_t, device=device)
 
         modifications_count = 0
         Yl_t_mod = Yl_t.clone()
         Yl_t1_mod = Yl_t1.clone()
 
-        # --- Цикл по выбранным кольцам для встраивания бит ---
+        #Цикл по выбранным кольцам для встраивания бит
         logging.debug(f"{prefix_base} --- Start Ring Loop (GPU Alpha, Embedding {len(bits_to_embed)} bits) ---")
         for ring_idx, bit_to_embed in zip(rings_to_process, bits_to_embed):
             prefix = f"[P:{pair_index} R:{ring_idx}]"
@@ -2363,18 +2226,15 @@ def embed_frame_pair(
             coords1_tensor = ring_coords_t[ring_idx]
             coords2_tensor = ring_coords_t1[ring_idx]
 
-            if coords1_tensor.shape[0] < 10 or coords2_tensor.shape[0] < 10:  # Минимальное количество пикселей в кольце
+            if coords1_tensor.shape[0] < 10 or coords2_tensor.shape[0] < 10:
                 logging.debug(
                     f"{prefix} Ring too small (coords1: {coords1_tensor.shape[0]}, coords2: {coords2_tensor.shape[0]}). Skipping.")
                 continue
 
             try:
-                # Извлечение координат и значений пикселей из тензоров
                 rows1, cols1 = coords1_tensor[:, 0], coords1_tensor[:, 1]
                 rows2, cols2 = coords2_tensor[:, 0], coords2_tensor[:, 1]
 
-                # v1_tensor и v2_tensor - это тензоры значений пикселей из КОПИЙ Yl_t_mod и Yl_t1_mod
-                # Используем .float() для гарантии типа перед DCT/SVD
                 v1_tensor = Yl_t_mod[rows1, cols1].float()
                 v2_tensor = Yl_t1_mod[rows2, cols2].float()
 
@@ -2383,23 +2243,18 @@ def embed_frame_pair(
                     logging.debug(f"{prefix} Empty ring after coordinate extraction for v1 or v2. Skipping.");
                     continue
 
-                # Если размеры векторов пикселей не совпадают (маловероятно с GPU ring_division, но для безопасности)
                 if v1_tensor.numel() != v2_tensor.numel():
                     v1_tensor = v1_tensor[:min_s]
                     v2_tensor = v2_tensor[:min_s]
-                    # Важно: если обрезали, нужно также обновить rows1, cols1, rows2, cols2 для корректной записи обратно
                     rows1_actual, cols1_actual = rows1[:min_s], cols1[:min_s]
                     rows2_actual, cols2_actual = rows2[:min_s], cols2[:min_s]
                 else:
                     rows1_actual, cols1_actual = rows1, cols1
                     rows2_actual, cols2_actual = rows2, cols2
 
-                # Вычисляем адаптивную альфу с помощью новой GPU-версии функции
-                # v1_tensor (значения из первого кадра пары) используется для вычисления альфы
                 alpha_t = compute_adaptive_alpha_entropy_torch(v1_tensor, ring_idx,
-                                                               frame_number)  # alpha_t теперь тензор
+                                                               frame_number)
 
-                # inv_a также будет тензором
                 inv_a = torch.tensor(1.0, device=device, dtype=alpha_t.dtype) / (alpha_t + 1e-12)
                 logging.debug(f"{prefix} PyTorch Adaptive alpha={alpha_t.item():.4f}")
 
@@ -2424,16 +2279,16 @@ def embed_frame_pair(
 
                 s1 = S1_vec[0]  # s1, s2 - скалярные тензоры (главные сингулярные числа)
                 s2 = S2_vec[0]
-                if not torch.isfinite(s1) or not torch.isfinite(s2):  # Проверка на NaN/Inf
+                if not torch.isfinite(s1) or not torch.isfinite(s2):
                     logging.warning(
                         f"{prefix} Non-finite singular values s1 ({s1.item()}) or s2 ({s2.item()}). Skipping.");
                     continue
 
-                eps = torch.tensor(1e-12, device=device, dtype=s1.dtype)  # Эпсилон для защиты от деления на ноль
-                s2_safe = s2 + eps if torch.abs(s2) < eps else s2  # s2_safe никогда не будет 0
-                original_ratio = s1 / s2_safe  # original_ratio теперь тензор
+                eps = torch.tensor(1e-12, device=device, dtype=s1.dtype)  # Эпсилон для //0
+                s2_safe = s2 + eps if torch.abs(s2) < eps else s2
+                original_ratio = s1 / s2_safe
 
-                ns1, ns2 = s1.clone(), s2.clone()  # Клонируем тензоры s1, s2
+                ns1, ns2 = s1.clone(), s2.clone()  #тензоры s1, s2
                 modified = False
 
                 one_tensor = torch.tensor(1.0, device=device, dtype=s1.dtype)
@@ -2449,8 +2304,7 @@ def embed_frame_pair(
                 strengthen_needed_tensor = torch.tensor(False, device=device)
                 target_ratio_tensor = original_ratio.clone()
 
-                if not modify_needed_tensor.item():  # Если .item() == False, т.е. биты совпадают
-                    # Проверяем, нужно ли усиление
+                if not modify_needed_tensor.item():
                     condition_strengthen0 = (bit_to_embed_tensor == 0) & (original_ratio < alpha_t)
                     condition_strengthen1 = (bit_to_embed_tensor == 1) & (
                                 original_ratio > inv_a)
@@ -2460,17 +2314,17 @@ def embed_frame_pair(
                     elif condition_strengthen1.item():  # Условие для усиления бита 1
                         strengthen_needed_tensor = torch.tensor(True, device=device)
                         action_log_message = f"Strengthening bit 1 (orig_ratio={original_ratio.item():.4f}, inv_a={inv_a.item():.4f})"
-                else:  # modify_needed_tensor is True
+                else:
                     action_log_message = f"Modifying bit {current_bit_tensor.item()} -> {bit_to_embed_tensor.item()} (tensor)"
 
                 if modify_needed_tensor.item() or strengthen_needed_tensor.item():
                     modified = True
                     energy_sq = s1 ** 2 + s2 ** 2
-                    energy = torch.sqrt(energy_sq + eps)  # Добавляем eps для стабильности sqrt, если s1 и s2 оба 0
+                    energy = torch.sqrt(energy_sq + eps)
 
                     if bit_to_embed_tensor == 0:
                         target_ratio_tensor = alpha_t
-                    else:  # bit_to_embed_tensor == 1
+                    else:
                         target_ratio_tensor = inv_a
 
                     denominator_sq = target_ratio_tensor ** 2 + one_tensor
@@ -2510,19 +2364,15 @@ def embed_frame_pair(
                         logging.warning(f"{prefix} Shape mismatch for v1m/v2m after IDCT. Skipping update.");
                         continue
 
-                    # Вычисляем дельту (разницу)
                     delta1_pt = v1m_tensor - v1_tensor
                     delta2_pt = v2m_tensor - v2_tensor
 
-                    # Применяем перцептуальную маску к дельте
+                    #применение перцептуальной маски к дельте
                     mf1 = torch.ones_like(delta1_pt, device=device)
                     mf2 = torch.ones_like(delta2_pt, device=device)
 
                     if use_perceptual_masking and perceptual_mask_tensor is not None:
                         try:
-                            # Убеждаемся, что индексы не выходят за пределы маски
-                            # perceptual_mask_tensor должен иметь те же размеры, что и Yl_t
-                            # rowsX_actual и colsX_actual уже должны быть корректными по длине
                             if perceptual_mask_tensor.shape[0] > rows1_actual.max().item() and \
                                     perceptual_mask_tensor.shape[1] > cols1_actual.max().item():
                                 mv1 = perceptual_mask_tensor[rows1_actual, cols1_actual]
@@ -2548,19 +2398,16 @@ def embed_frame_pair(
                         except Exception as mask_err:
                             logging.warning(f"{prefix} Mask apply general error: {mask_err}. Using unmasked delta.")
 
-                    # Применение модифицированной дельты к Yl_t_mod и Yl_t1_mod
-                    # Используем += как в СТАБИЛЬНОЙ версии
                     Yl_t_mod[rows1_actual, cols1_actual] += delta1_pt * mf1
                     Yl_t1_mod[rows2_actual, cols2_actual] += delta2_pt * mf2
 
             except Exception as e_ring_loop:
                 logging.error(f"{prefix} Error in ring loop (GPU Alpha): {e_ring_loop}", exc_info=True)
-                continue  # Переход к следующему кольцу/биту
+                continue
 
         logging.debug(f"{prefix_base} --- End Ring Loop (GPU Alpha, {modifications_count} modifications) ---")
 
-        # 5. Обратное DTCWT
-        # Убедимся, что тензоры имеют правильную размерность (Batch, Channel, H, W) для IDTCWT
+        #Обратное DTCWT
         if Yl_t_mod.dim() == 2:
             Yl_t_mod_final = Yl_t_mod.unsqueeze(0).unsqueeze(0)
         elif Yl_t_mod.dim() == 4 and Yl_t_mod.shape[0] == 1 and Yl_t_mod.shape[1] == 1:
@@ -2582,18 +2429,15 @@ def embed_frame_pair(
             logging.error(f"{prefix_base} DTCWT inverse failed.")
             return None, None
 
-        # 6. Постобработка и сборка кадра
-        # Денормализация ([0,1] -> [0,255]), клиппинг и конвертация в uint8
+        #   постобработка и сборка кадра
         c1s_np = np.clip(c1m_np * 255.0, 0, 255).astype(np.uint8)
         c2s_np = np.clip(c2m_np * 255.0, 0, 255).astype(np.uint8)
 
-        # Ресайз, если форма не совпадает (маловероятно, если target_shape_hw правильно передана в IDTCWT)
         if c1s_np.shape != target_shape_hw:
             c1s_np = cv2.resize(c1s_np, (target_shape_hw[1], target_shape_hw[0]), interpolation=cv2.INTER_LINEAR)
         if c2s_np.shape != target_shape_hw:
             c2s_np = cv2.resize(c2s_np, (target_shape_hw[1], target_shape_hw[0]), interpolation=cv2.INTER_LINEAR)
 
-        # Копируем исходные YCrCb кадры и заменяем только обработанный компонент
         f1_ycrcb_out_np = f1_ycrcb_np.copy()
         f2_ycrcb_out_np = f2_ycrcb_np.copy()
 
@@ -2609,9 +2453,8 @@ def embed_frame_pair(
 
     except Exception as e_embed_pair:
         logging.error(f"{prefix_base} Critical error in embed_frame_pair (GPU Alpha): {e_embed_pair}", exc_info=True)
-        # Очистка CUDA памяти при ошибке, если используется GPU
         if device.type == 'cuda':
-            with torch.no_grad():  # Убеждаемся, что нет активных градиентов
+            with torch.no_grad():
                 torch.cuda.empty_cache()
         return None, None
 
@@ -2914,9 +2757,8 @@ def embed_watermark_in_video(
     if skipped_pairs > 0: logging.warning(f"Skipped {skipped_pairs} pairs during task prep.")
     if num_valid_tasks == 0: logging.error("No valid tasks to process."); return None
 
-    # --- Запуск ThreadPoolExecutor с ОГРАНИЧЕННЫМ числом воркеров ---
-    num_workers_to_use = max_workers if max_workers is not None and max_workers > 0 else 1 # Минимум 1
-    batch_size = max(1, ceil(num_valid_tasks / num_workers_to_use) * 2);
+    num_workers_to_use = max_workers if max_workers is not None and max_workers > 0 else 1
+    batch_size = max(1, ceil(num_valid_tasks / num_workers_to_use));
     num_batches = ceil(num_valid_tasks / batch_size)
     batched_args_list = [all_pairs_args[i:i + batch_size] for i in range(0, num_valid_tasks, batch_size) if all_pairs_args[i:i+batch_size]]
     actual_num_batches = len(batched_args_list)
@@ -2966,7 +2808,6 @@ def embed_watermark_in_video(
     logging.info(f"Processing {pairs_to_process} pairs finished in {processing_time:.2f} sec.")
     logging.info(f"Result: Processed OK: {pc}, Errors/Skipped: {ec + skipped_pairs}, Frames Updated: {uc}.")
 
-    # Запись лога колец
     if rings_log:
         try:
             serializable_log = {str(k): v for k, v in rings_log.items()}
@@ -2989,7 +2830,6 @@ def main() -> int:
     main_start_time = time.time()
     logging.info(f"--- Запуск Основного Процесса Встраивания (Smart Stitch) ---")
 
-    # --- Этап 0: Проверки доступности и инициализация ---
     if not PYAV_AVAILABLE:
         logging.critical("PyAV недоступен! Невозможно продолжить.")
         return 1
@@ -3026,7 +2866,7 @@ def main() -> int:
         logging.critical("pytorch_wavelets недоступен! Невозможно создать DTCWT объекты.")
         return 1
 
-    input_video_path = "drive.mp4"
+    input_video_path = "f11080.mp4"
     if not os.path.exists(input_video_path):
         logging.critical(f"Входной файл не найден: {input_video_path}")
         print(f"ОШИБКА: Входной файл не найден: {input_video_path}")
@@ -3178,7 +3018,6 @@ def main() -> int:
     logging.info(f"Видеокодер для 'головы': {target_video_encoder_lib_for_head}")
     logging.info(f"Финальный файл: '{final_output_path}', Временная голова: '{temp_head_path}'")
 
-    # Обработка случая, когда обрабатывать нечего (frames_to_process == 0)
     if frames_to_process <= 0:
         logging.warning("Нет кадров для обработки ЦВЗ (frames_to_process <= 0).")
         print("ПРЕДУПРЕЖДЕНИЕ: Нет кадров для встраивания ЦВЗ. Копирование оригинального файла...")
@@ -3193,7 +3032,6 @@ def main() -> int:
             logging.error(f"Ошибка копирования оригинала при frames_to_process=0: {e_copy_zero_frames}", exc_info=True)
             return 1
 
-    # --- Анализ I-кадров оригинала ---
     logging.info("Анализ I-кадров оригинального видео...")
     iframe_start_times_seconds = get_iframe_start_times(input_video_path)
     if not iframe_start_times_seconds:
@@ -3202,7 +3040,6 @@ def main() -> int:
     else:
         logging.info(f"Найдено {len(iframe_start_times_seconds)} I-кадров.")
 
-    # --- Этап 2: Чтение и Обработка "Головы" ---
     logging.info(f"Чтение 'головы' ({frames_to_process} кадров) и всех аудиопакетов...")
     video_stream_idx = input_metadata.get('video_stream_index', 0)
     audio_stream_idx = input_metadata.get('audio_stream_index', -1)
@@ -3229,7 +3066,6 @@ def main() -> int:
     logging.info(
         f"Прочитано {len(head_frames_bgr)} видеокадров для 'головы'. Собрано {len(all_audio_packets or [])} аудиопакетов.")
 
-    # Генерация ID
     original_id_bytes = os.urandom(PAYLOAD_LEN_BYTES)
     original_id_hex = original_id_bytes.hex()
     logging.info(f"Сгенерирован Payload ID: {original_id_hex}")
@@ -3240,7 +3076,6 @@ def main() -> int:
     except IOError as e_id_save:
         logging.error(f"Не удалось сохранить ID: {e_id_save}", exc_info=True)
 
-    # Встраивание ЦВЗ
     logging.info("Встраивание ЦВЗ в 'голову'...")
     watermarked_head_frames = embed_watermark_in_video(
         frames_to_process=head_frames_bgr, payload_id_bytes=original_id_bytes,
@@ -3258,11 +3093,10 @@ def main() -> int:
     del head_frames_bgr;
     gc.collect()
 
-    # --- Этап 3: Запись "Головы" и получение точной длительности + параметров ---
     logging.info("Запись обработанной 'головы' и получение параметров...")
     video_enc_opts_for_head = {
         'preset': 'medium',
-        'crf': '20',
+        'crf': '21',
         'tune': 'zerolatency'
     }
     logging.info(f"Используются опции видеокодера для головы: {video_enc_opts_for_head}")
@@ -3296,7 +3130,6 @@ def main() -> int:
         f"Обработанная 'голова' записана: '{temp_head_path}'. Точная видео длительность: {actual_head_duration_sec:.9f} сек.")
     logging.debug(f"Параметры кодирования головы: {head_encoding_params}")
 
-    # --- Этап 4 и 5: "Умная" Склейка через concatenate_smart_stitch ---
     logging.info("Запуск умной склейки (Голова + Переход + Хвост_Копия)...")
 
     ffmpeg_smart_stitch_success = concatenate_smart_stitch(
@@ -3309,7 +3142,6 @@ def main() -> int:
         head_encoding_params=head_encoding_params,
     )
 
-    # --- Этап 6: Очистка и Завершение ---
     if os.path.exists(temp_head_path):
         if ffmpeg_smart_stitch_success:
             try:
@@ -3330,7 +3162,6 @@ def main() -> int:
                 pass
         return 1
 
-    # Финальная проверка файла
     if os.path.exists(final_output_path) and os.path.getsize(final_output_path) > 1024:
         logging.info(
             f"Финальный файл успешно создан: '{final_output_path}' (размер: {os.path.getsize(final_output_path)} байт).")
@@ -3348,16 +3179,13 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # Настройка логирования
     if not logging.getLogger().handlers:
         for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
         logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO,
                             format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
-    # Уровень логирования
     logging.getLogger().setLevel(logging.DEBUG)
     logging.getLogger().setLevel(logging.INFO)
 
-    # Проверка ключевых зависимостей
     missing_libs_critical = []
     if not PYAV_AVAILABLE: missing_libs_critical.append("PyAV (av)")
     if not PYTORCH_WAVELETS_AVAILABLE: missing_libs_critical.append("pytorch_wavelets")
@@ -3384,7 +3212,6 @@ if __name__ == "__main__":
         "ПРЕДУПРЕЖДЕНИЕ: Библиотека 'galois' не найдена/не работает. ECC будет недоступен.")
     if not PYMEDIAINFO_AVAILABLE: logging.warning("Библиотека 'pymediainfo' не найдена. MediaInfo fallback недоступен.")
 
-    # Профилирование
     DO_PROFILING = False
     profiler_instance = None
     if DO_PROFILING:
