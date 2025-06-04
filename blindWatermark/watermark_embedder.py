@@ -2916,7 +2916,7 @@ def embed_watermark_in_video(
 
     # --- Запуск ThreadPoolExecutor с ОГРАНИЧЕННЫМ числом воркеров ---
     num_workers_to_use = max_workers if max_workers is not None and max_workers > 0 else 1 # Минимум 1
-    batch_size = max(1, ceil(num_valid_tasks / num_workers_to_use));
+    batch_size = max(1, ceil(num_valid_tasks / num_workers_to_use) * 2);
     num_batches = ceil(num_valid_tasks / batch_size)
     batched_args_list = [all_pairs_args[i:i + batch_size] for i in range(0, num_valid_tasks, batch_size) if all_pairs_args[i:i+batch_size]]
     actual_num_batches = len(batched_args_list)
@@ -2924,7 +2924,7 @@ def embed_watermark_in_video(
     logging.info(f"Launching {actual_num_batches} batches ({num_valid_tasks} pairs) in ThreadPool (max_workers={num_workers_to_use}, batch≈{batch_size})...")
 
     try:
-        with ThreadPoolExecutor(max_workers=num_workers_to_use) as executor: # Используем num_workers_to_use
+        with ThreadPoolExecutor(max_workers=num_workers_to_use) as executor:
             future_to_batch_idx = {executor.submit(_embed_batch_worker, batch): i for i, batch in enumerate(batched_args_list)}
             for future in concurrent.futures.as_completed(future_to_batch_idx):
                 batch_idx = future_to_batch_idx[future]
@@ -3026,7 +3026,7 @@ def main() -> int:
         logging.critical("pytorch_wavelets недоступен! Невозможно создать DTCWT объекты.")
         return 1
 
-    input_video_path = "f1720.mp4"
+    input_video_path = "drive.mp4"
     if not os.path.exists(input_video_path):
         logging.critical(f"Входной файл не найден: {input_video_path}")
         print(f"ОШИБКА: Входной файл не найден: {input_video_path}")

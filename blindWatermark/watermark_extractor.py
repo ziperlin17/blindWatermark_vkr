@@ -1,6 +1,10 @@
 import cProfile
 import concurrent
+import gc
+import math
 import pstats
+import shutil
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 import cv2
@@ -13,9 +17,9 @@ import os
 import hashlib
 # import imagehash
 
-# from line_profiler import profile
-# import cProfile
-# import pstats
+from line_profiler import profile
+import cProfile
+import pstats
 import torch
 import torch.nn.functional as F
 from av.video.reformatter import VideoReformatter
@@ -24,24 +28,33 @@ from line_profiler import profile
 
 try:
     from pytorch_wavelets import DTCWTForward, DTCWTInverse
+
     PYTORCH_WAVELETS_AVAILABLE = True
 except ImportError:
     PYTORCH_WAVELETS_AVAILABLE = False
-    class DTCWTForward: pass
-    class DTCWTInverse: pass
+
+
+    class DTCWTForward:
+        pass
+
+
+    class DTCWTInverse:
+        pass
+
+
     logging.error("ОШИБКА: Библиотека pytorch_wavelets не найдена! Установите: pip install pytorch_wavelets")
 try:
     import torch_dct as dct_torch
+
     TORCH_DCT_AVAILABLE = True
 except ImportError:
     TORCH_DCT_AVAILABLE = False
     logging.error("ОШИБКА: Библиотека torch-dct не найдена! Установите: pip install torch-dct")
 
-
 from typing import List, Tuple, Optional, Dict, Any, Iterator
 import uuid
 from math import ceil
-from collections import Counter
+from collections import Counter, defaultdict
 import sys
 
 # --- Galois импорты ---
@@ -50,23 +63,33 @@ try:
     from av import FFmpegError, VideoFrame
     from av import EOFError as FFmpegEOFError
     from av import ValueError as FFmpegValueError
+
     PYAV_AVAILABLE = True
     logging.info("PyAV library imported successfully.")
 
 except ImportError:
     PYAV_AVAILABLE = False
     logging.error("PyAV library not found! Install it: pip install av")
+
+
     class av_dummy:
         class VideoFrame: pass
+
         class AudioFrame: pass
+
         class Packet: pass
+
         class TimeBase: pass
+
         class container:
             class Container: pass
+
         FFmpegError = Exception
         EOFError = EOFError
         ValueError = ValueError
         NotFoundError = Exception
+
+
     av = av_dummy
     FFmpegError = Exception
     FFmpegEOFError = EOFError
@@ -74,11 +97,17 @@ except ImportError:
 
 try:
     import galois
-    BCH_TYPE = galois.BCH; GALOIS_IMPORTED = True; logging.info("galois library imported.")
+
+    BCH_TYPE = galois.BCH;
+    GALOIS_IMPORTED = True;
+    logging.info("galois library imported.")
 except ImportError:
-    class BCH: pass; BCH_TYPE = BCH; GALOIS_IMPORTED = False; logging.info("galois library not found.")
+    class BCH:
+        pass; BCH_TYPE = BCH; GALOIS_IMPORTED = False; logging.info("galois library not found.")
 except Exception as import_err:
-    class BCH: pass; BCH_TYPE = BCH; GALOIS_IMPORTED = False; logging.error(f"Galois import error: {import_err}", exc_info=True)
+    class BCH:
+        pass; BCH_TYPE = BCH; GALOIS_IMPORTED = False; logging.error(f"Galois import error: {import_err}",
+                                                                     exc_info=True)
 
 # --- Глобальные Параметры ---
 LAMBDA_PARAM: float = 0.05
@@ -106,41 +135,62 @@ MAX_TOTAL_PACKETS_global = 15
 BCH_CODE_OBJECT: Optional[BCH_TYPE] = None
 GALOIS_AVAILABLE = False
 
-
 if GALOIS_IMPORTED:
-    _test_bch_ok = False; _test_decode_ok = False
+    _test_bch_ok = False;
+    _test_decode_ok = False
     try:
-        _test_m = BCH_M; _test_t = BCH_T; _test_n = (1 << _test_m) - 1; _test_d = 2 * _test_t + 1
+        _test_m = BCH_M;
+        _test_t = BCH_T;
+        _test_n = (1 << _test_m) - 1;
+        _test_d = 2 * _test_t + 1
         logging.info(f"Попытка инициализации Galois BCH с n={_test_n}, d={_test_d} (ожидаемое t={_test_t})")
         _test_bch_galois = galois.BCH(_test_n, d=_test_d)
-        if _test_t == 5: expected_k = 215
-        elif _test_t == 7: expected_k = 201
-        elif _test_t == 9: expected_k = 187
-        elif _test_t == 11: expected_k = 173
-        elif _test_t == 15: expected_k = 131
-        else: logging.error(f"Неизвестное k для t={_test_t}"); expected_k = -1
+        if _test_t == 5:
+            expected_k = 215
+        elif _test_t == 7:
+            expected_k = 201
+        elif _test_t == 9:
+            expected_k = 187
+        elif _test_t == 11:
+            expected_k = 173
+        elif _test_t == 15:
+            expected_k = 131
+        else:
+            logging.error(f"Неизвестное k для t={_test_t}"); expected_k = -1
 
         if expected_k != -1 and hasattr(_test_bch_galois, 't') and hasattr(_test_bch_galois, 'k') \
-           and _test_bch_galois.t == _test_t and _test_bch_galois.k == expected_k:
-             logging.info(f"galois BCH(n={_test_bch_galois.n}, k={_test_bch_galois.k}, t={_test_bch_galois.t}) OK.")
-             _test_bch_ok = True; BCH_CODE_OBJECT = _test_bch_galois
-        else: logging.error(f"galois BCH init mismatch! Ожидалось: t={_test_t}, k={expected_k}. Получено: t=getattr(_test_bch_galois, 't', 'N/A'), k=getattr(_test_bch_galois, 'k', 'N/A').")
+                and _test_bch_galois.t == _test_t and _test_bch_galois.k == expected_k:
+            logging.info(f"galois BCH(n={_test_bch_galois.n}, k={_test_bch_galois.k}, t={_test_bch_galois.t}) OK.")
+            _test_bch_ok = True;
+            BCH_CODE_OBJECT = _test_bch_galois
+        else:
+            logging.error(
+                f"galois BCH init mismatch! Ожидалось: t={_test_t}, k={expected_k}. Получено: t=getattr(_test_bch_galois, 't', 'N/A'), k=getattr(_test_bch_galois, 'k', 'N/A').")
 
         if _test_bch_ok and BCH_CODE_OBJECT is not None:
             try:
-                _n_bits = BCH_CODE_OBJECT.n; _dummy_cw_bits = np.zeros(_n_bits, dtype=np.uint8); GF2 = galois.GF(2); _dummy_cw_vec = GF2(_dummy_cw_bits)
+                _n_bits = BCH_CODE_OBJECT.n;
+                _dummy_cw_bits = np.zeros(_n_bits, dtype=np.uint8);
+                GF2 = galois.GF(2);
+                _dummy_cw_vec = GF2(_dummy_cw_bits)
                 _msg, _flips = BCH_CODE_OBJECT.decode(_dummy_cw_vec, errors=True)
-                _test_decode_ok = (_flips is not None or _flips == 0); logging.info(f"galois: decode() test {'OK' if _test_decode_ok else 'failed'}.")
-            except Exception as decode_err: logging.error(f"galois: decode() test failed: {decode_err}", exc_info=True); _test_decode_ok = False
-    except Exception as test_err: logging.error(f"galois: ОШИБКА теста: {test_err}", exc_info=True); BCH_CODE_OBJECT = None; _test_bch_ok = False
+                _test_decode_ok = (_flips is not None or _flips == 0);
+                logging.info(f"galois: decode() test {'OK' if _test_decode_ok else 'failed'}.")
+            except Exception as decode_err:
+                logging.error(f"galois: decode() test failed: {decode_err}", exc_info=True); _test_decode_ok = False
+    except Exception as test_err:
+        logging.error(f"galois: ОШИБКА теста: {test_err}", exc_info=True); BCH_CODE_OBJECT = None; _test_bch_ok = False
     GALOIS_AVAILABLE = _test_bch_ok and _test_decode_ok
     if not GALOIS_AVAILABLE: BCH_CODE_OBJECT = None
-if GALOIS_AVAILABLE: logging.info("galois: Готов к использованию.")
-else: logging.warning("galois: НЕ ДОСТУПЕН.")
+if GALOIS_AVAILABLE:
+    logging.info("galois: Готов к использованию.")
+else:
+    logging.warning("galois: НЕ ДОСТУПЕН.")
 
 # --- Настройка логирования ---
 for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
-logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO, format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
+logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO,
+                    format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
 logging.getLogger().setLevel(logging.DEBUG)
 
 # --- Логирование конфигурации ---
@@ -149,11 +199,14 @@ logging.info(f"PyTorch Wavelets Доступно: {PYTORCH_WAVELETS_AVAILABLE}")
 logging.info(f"Torch DCT Доступно: {TORCH_DCT_AVAILABLE}")
 logging.info(f"Метод выбора колец: {RING_SELECTION_METHOD}, Pool: {CANDIDATE_POOL_SIZE}, Select: {NUM_RINGS_TO_USE}")
 logging.info(f"Ожид. Payload: {PAYLOAD_LEN_BYTES * 8}bit")
-logging.info(f"ECC Ожидается (для 1-го пак.): {USE_ECC}, Доступен/Работает: {GALOIS_AVAILABLE} (BCH m={BCH_M}, t={BCH_T})")
+logging.info(
+    f"ECC Ожидается (для 1-го пак.): {USE_ECC}, Доступен/Работает: {GALOIS_AVAILABLE} (BCH m={BCH_M}, t={BCH_T})")
 logging.info(f"Компонент: {['Y', 'Cr', 'Cb'][EMBED_COMPONENT]}, N_RINGS_Total={N_RINGS}")
 logging.info(f"Параллелизм: ThreadPoolExecutor (max_workers={MAX_WORKERS_EXTRACT or 'default'}) с батчингом.")
-if NUM_RINGS_TO_USE > CANDIDATE_POOL_SIZE: logging.error(f"NUM_RINGS_TO_USE > CANDIDATE_POOL_SIZE! Проверьте настройки.")
+if NUM_RINGS_TO_USE > CANDIDATE_POOL_SIZE: logging.error(
+    f"NUM_RINGS_TO_USE > CANDIDATE_POOL_SIZE! Проверьте настройки.")
 if NUM_RINGS_TO_USE != BITS_PER_PAIR: logging.warning(f"NUM_RINGS_TO_USE != BITS_PER_PAIR.")
+
 
 # --- Базовые Функции ---
 
@@ -162,6 +215,7 @@ def dct1d_torch(s_tensor: torch.Tensor) -> torch.Tensor:
     if not TORCH_DCT_AVAILABLE: raise RuntimeError("torch-dct не доступен")
     return dct_torch.dct(s_tensor, norm='ortho')
 
+
 def svd_torch_s1(tensor_1d: torch.Tensor) -> Optional[torch.Tensor]:
     """Применяет SVD и возвращает только первое сингулярное число как тензор."""
     try:
@@ -169,37 +223,51 @@ def svd_torch_s1(tensor_1d: torch.Tensor) -> Optional[torch.Tensor]:
         s_values = torch.linalg.svdvals(tensor_2d)
         if s_values is None or s_values.numel() == 0: return None
         if not torch.isfinite(s_values[0]): return None
-        return s_values[0] # Возвращаем тензор (скаляр)
+        return s_values[0]  # Возвращаем тензор (скаляр)
     except Exception as e:
         logging.error(f"PyTorch SVD error: {e}", exc_info=True)
         return None
 
-def dtcwt_pytorch_forward(yp_tensor: torch.Tensor, xfm: DTCWTForward, device: torch.device, fn: int = -1) -> Tuple[Optional[torch.Tensor], Optional[List[torch.Tensor]]]:
+
+def dtcwt_pytorch_forward(yp_tensor: torch.Tensor, xfm: DTCWTForward, device: torch.device, fn: int = -1) -> Tuple[
+    Optional[torch.Tensor], Optional[List[torch.Tensor]]]:
     """Применяет прямое DTCWT PyTorch к одному каналу (2D тензору)."""
     if not PYTORCH_WAVELETS_AVAILABLE: logging.error("PTW unavailable."); return None, None
-    if not isinstance(yp_tensor, torch.Tensor) or yp_tensor.ndim != 2: logging.error(f"[F:{fn}] Invalid input tensor."); return None, None
+    if not isinstance(yp_tensor, torch.Tensor) or yp_tensor.ndim != 2: logging.error(
+        f"[F:{fn}] Invalid input tensor."); return None, None
     try:
         yp_tensor = yp_tensor.unsqueeze(0).unsqueeze(0).to(device=device, dtype=torch.float32)
         xfm = xfm.to(device)
-        with torch.no_grad(): Yl, Yh = xfm(yp_tensor)
-        if Yl is None or Yh is None or not isinstance(Yh, list) or not Yh: logging.error(f"[F:{fn}] DTCWTForward invalid result."); return None, None
+        with torch.no_grad():
+            Yl, Yh = xfm(yp_tensor)
+        if Yl is None or Yh is None or not isinstance(Yh, list) or not Yh: logging.error(
+            f"[F:{fn}] DTCWTForward invalid result."); return None, None
         return Yl, Yh
-    except Exception as e: logging.error(f"[F:{fn}] PT DTCWT fwd error: {e}"); return None, None
+    except Exception as e:
+        logging.error(f"[F:{fn}] PT DTCWT fwd error: {e}"); return None, None
+
 
 def ring_division(lp_tensor: torch.Tensor, nr: int = N_RINGS, fn: int = -1) -> List[Optional[torch.Tensor]]:
     """Разбивает 2D PyTorch тензор на N колец (версия из embedder)."""
-    if not isinstance(lp_tensor, torch.Tensor) or lp_tensor.ndim != 2: logging.error(f"[F:{fn}] Invalid input for ring_division."); return [None] * nr
-    H, W = lp_tensor.shape; device = lp_tensor.device
+    if not isinstance(lp_tensor, torch.Tensor) or lp_tensor.ndim != 2: logging.error(
+        f"[F:{fn}] Invalid input for ring_division."); return [None] * nr
+    H, W = lp_tensor.shape;
+    device = lp_tensor.device
     if H < 2 or W < 2: logging.warning(f"[F:{fn}] Tensor too small ({H}x{W})"); return [None] * nr
     try:
-        rr, cc = torch.meshgrid(torch.arange(H, device=device, dtype=torch.float32), torch.arange(W, device=device, dtype=torch.float32), indexing='ij')
-        center_r, center_c = (H - 1) / 2.0, (W - 1) / 2.0; distances = torch.sqrt((rr - center_r)**2 + (cc - center_c)**2)
+        rr, cc = torch.meshgrid(torch.arange(H, device=device, dtype=torch.float32),
+                                torch.arange(W, device=device, dtype=torch.float32), indexing='ij')
+        center_r, center_c = (H - 1) / 2.0, (W - 1) / 2.0;
+        distances = torch.sqrt((rr - center_r) ** 2 + (cc - center_c) ** 2)
         min_dist, max_dist = torch.tensor(0.0, device=device), torch.max(distances)
-        if max_dist < 1e-9: ring_bins = torch.tensor([0.0]*(nr + 1), device=device); ring_bins[1:] = max_dist + 1e-6
-        else: ring_bins = torch.linspace(min_dist.item(), (max_dist + 1e-6).item(), nr + 1, device=device)
+        if max_dist < 1e-9:
+            ring_bins = torch.tensor([0.0] * (nr + 1), device=device); ring_bins[1:] = max_dist + 1e-6
+        else:
+            ring_bins = torch.linspace(min_dist.item(), (max_dist + 1e-6).item(), nr + 1, device=device)
         ring_indices = torch.zeros_like(distances, dtype=torch.long) - 1
         for i in range(nr):
-            mask = (distances >= ring_bins[i]) & (distances < ring_bins[i+1] if i < nr-1 else distances <= ring_bins[i+1])
+            mask = (distances >= ring_bins[i]) & (
+                distances < ring_bins[i + 1] if i < nr - 1 else distances <= ring_bins[i + 1])
             ring_indices[mask] = i
         ring_indices[distances < ring_bins[1]] = 0
         rings: List[Optional[torch.Tensor]] = [None] * nr
@@ -207,7 +275,8 @@ def ring_division(lp_tensor: torch.Tensor, nr: int = N_RINGS, fn: int = -1) -> L
             coords_tensor = torch.nonzero(ring_indices == rdx, as_tuple=False)
             if coords_tensor.shape[0] > 0: rings[rdx] = coords_tensor.long()
         return rings
-    except Exception as e: logging.error(f"Ring division PT error F{fn}: {e}"); return [None] * nr
+    except Exception as e:
+        logging.error(f"Ring division PT error F{fn}: {e}"); return [None] * nr
 
 
 def calculate_entropies_torch(rv_tensor: torch.Tensor, fn: int = -1, ri: int = -1) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -262,12 +331,308 @@ def get_fixed_pseudo_random_rings(pi: int, nr: int, ps: int) -> List[int]:
 
     if ps <= 0: return []
     if ps > nr: ps = nr
-    seed_str = str(pi).encode('utf-8'); hash_digest = hashlib.sha256(seed_str).digest()
-    seed_int = int.from_bytes(hash_digest, 'big'); prng = random.Random(seed_int)
-    try: candidate_indices = prng.sample(range(nr), ps)
-    except ValueError: candidate_indices = list(range(nr)); prng.shuffle(candidate_indices); candidate_indices = candidate_indices[:ps]
+    seed_str = str(pi).encode('utf-8');
+    hash_digest = hashlib.sha256(seed_str).digest()
+    seed_int = int.from_bytes(hash_digest, 'big');
+    prng = random.Random(seed_int)
+    try:
+        candidate_indices = prng.sample(range(nr), ps)
+    except ValueError:
+        candidate_indices = list(range(nr)); prng.shuffle(candidate_indices); candidate_indices = candidate_indices[:ps]
     logging.debug(f"[P:{pi}] Candidates: {candidate_indices}");
     return candidate_indices
+
+
+def bits_to_bytes_strict(bit_list: List[int], expected_bytes: Optional[int] = None) -> Optional[bytes]:
+    num_bits = len(bit_list)
+    if not all(b in (0, 1) for b in bit_list):
+        logging.error("bits_to_bytes_strict: список содержит невалидные биты (не 0 или 1).")
+        return None
+    if num_bits == 0 and expected_bytes == 0: return b''
+    if num_bits == 0 and expected_bytes is None: return b''
+    if num_bits == 0: return None  # Если ожидались байты, а бит нет
+
+    if num_bits % 8 != 0:
+        logging.error(f"bits_to_bytes_strict: длина списка бит ({num_bits}) не кратна 8.")
+        return None
+
+    actual_len_bytes = num_bits // 8
+    if expected_bytes is not None and actual_len_bytes != expected_bytes:
+        logging.error(
+            f"bits_to_bytes_strict: фактическая длина байт ({actual_len_bytes}) не соответствует ожидаемой ({expected_bytes}).")
+        return None
+
+    byte_array = bytearray()
+    for i in range(0, num_bits, 8):
+        byte_chunk = bit_list[i:i + 8]
+        try:
+            byte_val = int("".join(map(str, byte_chunk)), 2)
+            byte_array.append(byte_val)
+        except ValueError:
+            logging.error(f"bits_to_bytes_strict: Не удалось конвертировать битовый чанк: {byte_chunk}")
+            return None
+    return bytes(byte_array)
+
+
+def get_byte_from_bits(bits_payload: List[int], byte_index: int) -> Optional[int]:
+    start_bit_index = byte_index * 8
+    end_bit_index = start_bit_index + 8
+    if start_bit_index < 0 or end_bit_index > len(bits_payload):
+        return None
+    byte_bits_str = "".join(map(str, bits_payload[start_bit_index:end_bit_index]))
+    try:
+        return int(byte_bits_str, 2)
+    except ValueError:
+        return None
+
+
+def get_bits_from_byte_value(byte_value: int) -> List[int]:
+    if not (0 <= byte_value <= 255):
+        raise ValueError("Значение байта должно быть в диапазоне 0-255")
+    return [int(bit) for bit in format(byte_value, '08b')]
+
+
+def intelligent_voting_strategy(  # Новое имя для ясности
+        valid_packets_info: List[Dict[str, Any]],
+        # {'payload_bits': List[int], 'packet_type': str, 'corrected_errors': int}
+        payload_len_bytes: int,
+        ngram_context_weight: float = 0.6  # Все еще нужен для Кандидата 3 (N-граммного)
+) -> List[str]:
+    payload_len_bits = payload_len_bytes * 8
+    num_valid_packets = len(valid_packets_info)
+
+    if num_valid_packets == 0:
+        logging.error("Voting FinalVote: Нет валидных пакетов.")
+        return []
+
+    logging.info(f"Voting FinalVote: Голосование по {num_valid_packets} пакетам...")
+    print(f"\n--- Voting FinalVote (по {num_valid_packets} пакетам) ---")
+
+    # --- Этап 1: Формирование Кандидата 1 (побитовое, ничьи в 0) ---
+    candidate1_bits: List[int] = [0] * payload_len_bits
+    print(f"\n--- Формирование Кандидата 1 (побитовый) ---")
+    for j_c1 in range(payload_len_bits):
+        votes_0_c1, votes_1_c1 = 0, 0
+        for p_info_c1 in valid_packets_info:
+            if j_c1 < len(p_info_c1["payload_bits"]):
+                if p_info_c1["payload_bits"][j_c1] == 1:
+                    votes_1_c1 += 1
+                elif p_info_c1["payload_bits"][j_c1] == 0:
+                    votes_0_c1 += 1
+        if votes_1_c1 > votes_0_c1:
+            candidate1_bits[j_c1] = 1
+        elif votes_0_c1 > votes_1_c1:
+            candidate1_bits[j_c1] = 0
+        else:
+            candidate1_bits[j_c1] = 0  # Ничья -> 0
+    candidate1_bytes = bits_to_bytes_strict(candidate1_bits, payload_len_bytes)
+    candidate1_hex = candidate1_bytes.hex() if candidate1_bytes else None
+    if not candidate1_hex: logging.error("К1: Ошибка HEX."); candidate1_bits = None  # Отмечаем C1 как невалидный
+
+    # --- Этап 2: Формирование Кандидата 2 (простое побайтовое с приоритетом ECC) ---
+    print(f"\n--- Формирование Кандидата 2 (простое побайтовое) ---")
+    candidate2_bits: List[int] = [0] * payload_len_bits
+    byte_counts_at_each_position: List[Counter] = [Counter() for _ in range(payload_len_bytes)]
+    for byte_idx_c2 in range(payload_len_bytes):
+        byte_options_map_c2: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        for p_info_c2 in valid_packets_info:
+            byte_val_c2 = get_byte_from_bits(p_info_c2["payload_bits"], byte_idx_c2)
+            if byte_val_c2 is not None:
+                byte_options_map_c2[byte_val_c2].append(p_info_c2)
+                byte_counts_at_each_position[byte_idx_c2][byte_val_c2] += 1
+        chosen_byte_c2_val: int
+        if not byte_options_map_c2:
+            fb_c1_byte = get_byte_from_bits(candidate1_bits, byte_idx_c2) if candidate1_bits else None
+            chosen_byte_c2_val = fb_c1_byte if fb_c1_byte is not None else 0
+        else:
+            sorted_options_c2 = sorted(byte_options_map_c2.items(), key=lambda i: len(i[1]), reverse=True)
+            max_freq_c2 = len(sorted_options_c2[0][1])
+            winners_c2 = sorted([b for b, p in sorted_options_c2 if len(p) == max_freq_c2])
+            if len(winners_c2) == 1:
+                chosen_byte_c2_val = winners_c2[0]
+            else:
+                best_ecc_c2, min_corr_c2, clean_ecc_c2 = None, float('inf'), None
+                for b_win in winners_c2:
+                    for p_info in byte_options_map_c2[b_win]:
+                        if p_info["packet_type"] == 'ECC':
+                            corr = p_info.get("corrected_errors", 0)
+                            if corr > 0 and corr < min_corr_c2:
+                                min_corr_c2 = corr;best_ecc_c2 = b_win
+                            elif corr == 0 and clean_ecc_c2 is None:
+                                clean_ecc_c2 = b_win
+                if best_ecc_c2 is not None:
+                    chosen_byte_c2_val = best_ecc_c2
+                elif clean_ecc_c2 is not None:
+                    chosen_byte_c2_val = clean_ecc_c2
+                else:
+                    chosen_byte_c2_val = winners_c2[0]
+        bits_c2 = get_bits_from_byte_value(chosen_byte_c2_val)
+        for k in range(8): candidate2_bits[byte_idx_c2 * 8 + k] = bits_c2[k]
+    candidate2_bytes = bits_to_bytes_strict(candidate2_bits, payload_len_bytes)
+    candidate2_hex = candidate2_bytes.hex() if candidate2_bytes else None
+    if not candidate2_hex: logging.error("К2: Ошибка HEX."); candidate2_bits = None
+
+    # --- Этап 3: Формирование Кандидата 3 (N-граммный) ---
+    print(f"\n--- Формирование Кандидата 3 (N-граммный) ---")
+    candidate3_bits: List[int] = [0] * payload_len_bits
+    bigram_counts: Counter = Counter()
+    for p_info_bg in valid_packets_info:
+        prev_b: Optional[int] = None
+        for b_idx_bg in range(payload_len_bytes):
+            curr_b = get_byte_from_bits(p_info_bg["payload_bits"], b_idx_bg)
+            if curr_b is not None:
+                if prev_b is not None: bigram_counts[(prev_b, curr_b)] += 1
+                prev_b = curr_b
+            else:
+                prev_b = None
+
+    temp_c3_bytes_list: List[int] = [0] * payload_len_bytes
+    first_b_c3_init = get_byte_from_bits(candidate2_bits if candidate2_bits else candidate1_bits, 0)  # type: ignore
+    temp_c3_bytes_list[0] = first_b_c3_init if first_b_c3_init is not None else 0
+
+    for b_idx_c3 in range(1, payload_len_bytes):
+        prev_b_c3 = temp_c3_bytes_list[b_idx_c3 - 1]
+        opts_c3 = byte_counts_at_each_position[b_idx_c3]
+        if not opts_c3:
+            fb_c1_b = get_byte_from_bits(candidate1_bits, b_idx_c3) if candidate1_bits else None  # type: ignore
+            temp_c3_bytes_list[b_idx_c3] = fb_c1_b if fb_c1_b is not None else 0
+            continue
+        best_b_c3: Optional[int] = None;
+        max_s_c3 = -1.0
+        count_prev_b_for_norm = byte_counts_at_each_position[b_idx_c3 - 1].get(prev_b_c3, 1)  # Знаменатель не 0
+        if count_prev_b_for_norm == 0: count_prev_b_for_norm = 1.0  # type: ignore
+
+        for cand_b, own_f in opts_c3.items():
+            bigram_f = bigram_counts.get((prev_b_c3, cand_b), 0)
+            s = (own_f / num_valid_packets) * (1.0 - ngram_context_weight) + (
+                        bigram_f / count_prev_b_for_norm) * ngram_context_weight
+            if s > max_s_c3:
+                max_s_c3 = s; best_b_c3 = cand_b
+            elif s == max_s_c3:
+                if best_b_c3 is None or cand_b < best_b_c3: best_b_c3 = cand_b
+        temp_c3_bytes_list[b_idx_c3] = best_b_c3 if best_b_c3 is not None else (
+                    get_byte_from_bits(candidate1_bits, b_idx_c3) or 0)  # type: ignore
+
+    for i_c3b, val_c3b in enumerate(temp_c3_bytes_list):
+        bits_val_c3b = get_bits_from_byte_value(val_c3b)
+        for k_c3b in range(8): candidate3_bits[i_c3b * 8 + k_c3b] = bits_val_c3b[k_c3b]
+    candidate3_bytes = bits_to_bytes_strict(candidate3_bits, payload_len_bytes)
+    candidate3_hex = candidate3_bytes.hex() if candidate3_bytes else None
+    if not candidate3_hex: logging.error("К3: Ошибка HEX."); candidate3_bits = None
+
+    logging.info(f"Кандидат 1 (побитовый): {candidate1_hex if candidate1_hex else 'Ошибка'}")
+    logging.info(f"Кандидат 2 (побайтовый): {candidate2_hex if candidate2_hex else 'Ошибка'}")
+    logging.info(f"Кандидат 3 (N-граммный): {candidate3_hex if candidate3_hex else 'Ошибка'}")
+
+    # --- Этап 4: Финальное Побитовое Голосование по Трем Кандидатам ---
+    final_resolved_bits: List[int] = [0] * payload_len_bits
+
+    # Собираем только валидно сформированных кандидатов (в виде списков бит)
+    valid_candidate_bit_lists: List[List[int]] = []
+    if candidate1_bits: valid_candidate_bit_lists.append(candidate1_bits)
+    if candidate2_bits: valid_candidate_bit_lists.append(candidate2_bits)
+    if candidate3_bits: valid_candidate_bit_lists.append(candidate3_bits)
+
+    if not valid_candidate_bit_lists:
+        logging.error("Ни один из методов (C1, C2, C3) не смог сформировать битового кандидата.")
+        return []  # Пустой список при фатальной ошибке
+
+    print(f"\n--- Этап 4: Финальное Побитовое Голосование по {len(valid_candidate_bit_lists)} кандидатам ---")
+    print(f"{'Bit Pos':<8} | {'Votes 0':<8} | {'Votes 1':<8} | {'Final Bit':<10} | {'Source':<15}")
+    print("-" * (8 + 9 + 9 + 11 + 16))
+
+    for j_final in range(payload_len_bits):
+        votes_0_final, votes_1_final = 0, 0
+        # Биты от кандидатов C3, C2, C1 для этой позиции j_final
+        bit_from_c3: Optional[int] = candidate3_bits[j_final] if candidate3_bits and j_final < len(
+            candidate3_bits) else None
+        bit_from_c2: Optional[int] = candidate2_bits[j_final] if candidate2_bits and j_final < len(
+            candidate2_bits) else None
+        bit_from_c1: Optional[int] = candidate1_bits[j_final] if candidate1_bits and j_final < len(
+            candidate1_bits) else None
+
+        # Голосуем только по валидным кандидатам
+        if bit_from_c1 is not None:
+            if bit_from_c1 == 0:
+                votes_0_final += 1
+            else:
+                votes_1_final += 1
+        if bit_from_c2 is not None:
+            if bit_from_c2 == 0:
+                votes_0_final += 1
+            else:
+                votes_1_final += 1
+        if bit_from_c3 is not None:
+            if bit_from_c3 == 0:
+                votes_0_final += 1
+            else:
+                votes_1_final += 1
+
+        source_str = "Majority"
+        if votes_1_final > votes_0_final:
+            final_resolved_bits[j_final] = 1
+        elif votes_0_final > votes_1_final:
+            final_resolved_bits[j_final] = 0
+        else:  # Ничья на финальном этапе (например, если был только 1 или 2 кандидата, или все 3 разные)
+            logging.warning(
+                f"Финальное голосование: Ничья на бите {j_final} ({votes_0_final}v{votes_1_final}). Приоритет C3>C2>C1.")
+            if bit_from_c3 is not None:  # Приоритет C3 (N-граммный)
+                final_resolved_bits[j_final] = bit_from_c3
+                source_str = "Tie->C3(Ngram)"
+            elif bit_from_c2 is not None:  # Затем C2 (Простой побайтовый)
+                final_resolved_bits[j_final] = bit_from_c2
+                source_str = "Tie->C2(Byte)"
+            elif bit_from_c1 is not None:  # Затем C1 (Побитовый)
+                final_resolved_bits[j_final] = bit_from_c1
+                source_str = "Tie->C1(Bit)"
+            else:  # Не должно случиться, если хоть один кандидат был
+                final_resolved_bits[j_final] = 0  # Абсолютный дефолт
+                source_str = "Tie->Default(0)"
+                logging.error(f"  Бит {j_final}: Ничья не разрешена приоритетом! Установлен '0'.")
+        print(
+            f"{j_final:<8} | {votes_0_final:<8} | {votes_1_final:<8} | {final_resolved_bits[j_final]:<10} | {source_str:<15}")
+    print("-" * (8 + 9 + 9 + 11 + 16))
+
+    final_bytes_v4_obj = bits_to_bytes_strict(final_resolved_bits, payload_len_bytes)
+    if not final_bytes_v4_obj:
+        logging.error("Не удалось сформировать итоговый ID после финального голосования.")
+        # Возвращаем лучший из C1, C2, C3, если они были. C1 должен быть всегда, если нет ранних ошибок.
+        return [candidate1_hex] if candidate1_hex else []
+
+    hex_candidate_v4_final = final_bytes_v4_obj.hex()
+    final_hex_candidates_output = [hex_candidate_v4_final]
+    logging.info(f"Итоговый кандидат после финального голосования (v4): {hex_candidate_v4_final}")
+
+    # --- Формирование Второго Кандидата (упрощенная логика) ---
+    # Основной результат - hex_candidate_v4_final.
+    # Если он отличается от C1 (побитового) и C1 не совпадает с C3 (N-граммным),
+    # то C1 может быть вторым кандидатом.
+    # Или если V4 совпал с C1, но C3 был другим, то C3 может быть вторым.
+
+    cand_to_compare_with_v4 = None
+    if candidate1_hex and candidate1_hex != hex_candidate_v4_final:
+        cand_to_compare_with_v4 = candidate1_hex
+    elif candidate3_hex and candidate3_hex != hex_candidate_v4_final:  # Если C1 = V4, но C3 другой
+        cand_to_compare_with_v4 = candidate3_hex
+    # Можно еще добавить C2, если и C1 и C3 совпали с V4, но C2 был другим.
+
+    if cand_to_compare_with_v4 and cand_to_compare_with_v4 not in final_hex_candidates_output:
+        final_hex_candidates_output.append(cand_to_compare_with_v4)
+        logging.info(f"Добавлен второй кандидат (из C1/C3): {cand_to_compare_with_v4}")
+
+    # Гарантируем не более двух УНИКАЛЬНЫХ кандидатов
+    unique_final_output = list(dict.fromkeys(final_hex_candidates_output))
+    if len(unique_final_output) > 2:
+        # Если получилось больше двух (маловероятно с текущей логикой), берем первые два
+        unique_final_output = unique_final_output[:2]
+        logging.warning(f"После всех шагов кандидатов >2, обрезано до: {unique_final_output}")
+
+    print(f"\n--- Финально Выбранные Кандидаты (intelligent_voting_strategy_v4) ---")
+    for i_res_v4, cand_hex_v4_val in enumerate(unique_final_output):
+        print(f"Итоговый Кандидат {i_res_v4 + 1}: {cand_hex_v4_val}")
+
+    return unique_final_output
+
 
 def bits_to_bytes(bit_list: List[Optional[int]]) -> Optional[bytes]:
     """
@@ -290,48 +655,80 @@ def bits_to_bytes(bit_list: List[Optional[int]]) -> Optional[bytes]:
     if remainder != 0: padding_len = 8 - remainder; valid_bits.extend([0] * padding_len); num_bits += padding_len
     byte_array = bytearray()
     for i in range(0, num_bits, 8):
-        byte_chunk = valid_bits[i:i+8]
+        byte_chunk = valid_bits[i:i + 8]
         try:
             if len(byte_chunk) != 8: logging.error(f"Byte chunk error: {byte_chunk}"); return None
-            byte_val = int("".join(map(str, byte_chunk)), 2); byte_array.append(byte_val)
-        except ValueError: logging.error(f"Invalid symbols in bit chunk: {byte_chunk}"); return None
+            byte_val = int("".join(map(str, byte_chunk)), 2);
+            byte_array.append(byte_val)
+        except ValueError:
+            logging.error(f"Invalid symbols in bit chunk: {byte_chunk}"); return None
     return bytes(byte_array)
 
-def decode_ecc(packet_bits_list: List[int], bch_code: Optional[BCH_TYPE], expected_data_len_bytes: int) -> Tuple[Optional[bytes], int]:
-    """
-        Декодирует пакет бит с использованием предоставленного объекта BCH кода.
 
-        Args:
-            packet_bits_list: Список бит (0 или 1), представляющий кодовое слово.
-            bch_code: Объект galois.BCH, используемый для декодирования.
-            expected_data_len_bytes: Ожидаемая длина полезной нагрузки (данных) в байтах.
+def decode_ecc(packet_bits_list: List[int], bch_code: Optional[BCH_TYPE], expected_data_len_bytes: int) -> Tuple[
+    Optional[List[int]], int]:
+    if not GALOIS_AVAILABLE or bch_code is None:
+        return None, -1  # ECC недоступен
 
-        Returns:
-            Кортеж (Optional[bytes], int):
-                - Декодированная полезная нагрузка в виде байт, или None при ошибке.
-                - Количество исправленных ошибок (int), или -1, если декодирование
-                  не удалось или ошибки неисправимы.
-        """
+    n_corrected: int = -1  # По умолчанию - ошибка / неисправимо
+    payload_len_bits = expected_data_len_bytes * 8
 
-    if not GALOIS_AVAILABLE or bch_code is None: logging.error("ECC decode called but unavailable."); return None, -1
-    n_corrected = -1
     try:
-        n=bch_code.n; k=bch_code.k; expected_payload_bits=expected_data_len_bytes*8
-        if len(packet_bits_list) != n: logging.error(f"Decode ECC: Bad len {len(packet_bits_list)}!={n}"); return None, -1
-        if expected_payload_bits > k: logging.error(f"Decode ECC: Payload {expected_payload_bits}>k {k}"); return None, -1
-        packet_bits_np=np.array(packet_bits_list, dtype=np.uint8); GF=bch_code.field; rx_vec=GF(packet_bits_np)
-        try: corr_msg_vec, n_corrected = bch_code.decode(rx_vec, errors=True)
-        except galois.errors.UncorrectableError: logging.warning("Galois ECC: Uncorrectable."); return None, -1
-        corr_k_bits=corr_msg_vec.view(np.ndarray).astype(np.uint8)
-        if corr_k_bits.size < expected_payload_bits: logging.error(f"Decode ECC: Decoded len {corr_k_bits.size} < {expected_payload_bits}"); return None, n_corrected
-        payload_bits=corr_k_bits[:expected_payload_bits]; payload_bytes = bits_to_bytes(payload_bits.tolist())
-        if payload_bytes is None: logging.error("Decode ECC: bits_to_bytes failed."); return None, n_corrected
-        logging.info(f"Galois ECC: Decoded, corrected {n_corrected} errors.")
-        return payload_bytes, n_corrected
-    except Exception as e: logging.error(f"Decode ECC unexpected error: {e}", exc_info=True); return None, -1
+        if not (hasattr(bch_code, 'n') and hasattr(bch_code, 'k') and hasattr(bch_code, 'field') and hasattr(bch_code,
+                                                                                                             'decode')):
+            logging.error("decode_ecc: Объект bch_code не имеет необходимых атрибутов.")
+            return None, -1
+
+        n_val: int = bch_code.n
+        k_val: int = bch_code.k
+
+        if len(packet_bits_list) != n_val:
+            logging.error(f"Decode ECC: Неверная длина входного пакета {len(packet_bits_list)} != {n_val}.")
+            return None, -1
+        if payload_len_bits > k_val:
+            logging.error(f"Decode ECC: Ожидаемая длина полезной нагрузки ({payload_len_bits}) > k ({k_val}).")
+            return None, -1
+
+        packet_bits_np_arr = np.array(packet_bits_list, dtype=np.uint8)
+        GF_field = bch_code.field
+        rx_codeword_vector = GF_field(packet_bits_np_arr)
+
+        try:
+            corrected_msg_vector, num_errors_found = bch_code.decode(rx_codeword_vector, errors=True)
+            n_corrected = int(num_errors_found)
+        except galois.errors.UncorrectableError:
+            logging.warning(
+                f"Galois ECC: Неисправимые ошибки в пакете (длина {len(packet_bits_list)}). n_corrected остается -1.")
+            # ВАШЕ ТРЕБОВАНИЕ: если -1, пакет все еще должен учитываться.
+            # Значит, мы должны вернуть исходные биты (обрезанные до payload_len_bits), если это возможно.
+            # Но decode_ecc в galois не возвращает их при UncorrectableError.
+            # Поэтому, если ECC не смог исправить, мы не можем получить "исходные биты сообщения из кодового слова".
+            # Мы можем вернуть только None для бит.
+            return None, -1
+        except Exception as e_decoding_error:
+            logging.error(f"Decode ECC: Ошибка во время bch_code.decode: {e_decoding_error}", exc_info=True)
+            return None, -1
+
+        corrected_k_bits_np_arr = corrected_msg_vector.view(np.ndarray).astype(np.uint8)
+
+        if corrected_k_bits_np_arr.size < payload_len_bits:
+            logging.error(
+                f"Decode ECC: Длина декодированных бит ({corrected_k_bits_np_arr.size}) < ожидаемой ({payload_len_bits}).")
+            return None, n_corrected
+
+        final_payload_bits_list = corrected_k_bits_np_arr[:payload_len_bits].tolist()
+
+        # logging.info(f"Galois ECC: Пакет успешно декодирован, исправлено ошибок: {n_corrected}.")
+        return final_payload_bits_list, n_corrected
+
+    except Exception as e_general_ecc:
+        logging.error(f"Decode ECC: Неожиданная ошибка: {e_general_ecc}", exc_info=True)
+        return None, -1
+
 
 @profile
-def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_idx: int, n_rings: int, fn: int) -> Optional[int]:
+def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_idx: int, n_rings: int, fn: int) -> \
+Optional[int]:
     """
     Извлекает один бит (PyTorch DCT/SVD).
     (BN-PyTorch-Optimized-Corrected - V2 Log)
@@ -342,9 +739,9 @@ def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_id
     try:
         # --- Шаг 1: Проверка входных данных ---
         if L1_tensor is None or L2_tensor is None or L1_tensor.shape != L2_tensor.shape \
-           or not isinstance(L1_tensor, torch.Tensor) or not isinstance(L2_tensor, torch.Tensor) \
-           or L1_tensor.ndim != 2 or L2_tensor.ndim != 2 \
-           or not torch.is_floating_point(L1_tensor) or not torch.is_floating_point(L2_tensor):
+                or not isinstance(L1_tensor, torch.Tensor) or not isinstance(L2_tensor, torch.Tensor) \
+                or L1_tensor.ndim != 2 or L2_tensor.ndim != 2 \
+                or not torch.is_floating_point(L1_tensor) or not torch.is_floating_point(L2_tensor):
             logging.warning(f"{prefix} Invalid L1/L2 provided.")
             return None
         device = L1_tensor.device
@@ -353,14 +750,16 @@ def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_id
         r1c = ring_division(L1_tensor, n_rings, fn)
         r2c = ring_division(L2_tensor, n_rings, fn + 1)
         if r1c is None or r2c is None \
-           or not(0 <= ring_idx < n_rings and ring_idx < len(r1c) and ring_idx < len(r2c)):
-             logging.warning(f"{prefix} Invalid ring index or ring_division failed.")
-             return None
-        cd1_tensor = r1c[ring_idx]; cd2_tensor = r2c[ring_idx]
+                or not (0 <= ring_idx < n_rings and ring_idx < len(r1c) and ring_idx < len(r2c)):
+            logging.warning(f"{prefix} Invalid ring index or ring_division failed.")
+            return None
+        cd1_tensor = r1c[ring_idx];
+        cd2_tensor = r2c[ring_idx]
         min_ring_size = 10
-        if cd1_tensor is None or cd2_tensor is None or cd1_tensor.shape[0] < min_ring_size or cd2_tensor.shape[0] < min_ring_size:
-             logging.debug(f"{prefix} Ring coords None or ring too small (<{min_ring_size}).")
-             return None
+        if cd1_tensor is None or cd2_tensor is None or cd1_tensor.shape[0] < min_ring_size or cd2_tensor.shape[
+            0] < min_ring_size:
+            logging.debug(f"{prefix} Ring coords None or ring too small (<{min_ring_size}).")
+            return None
 
         # --- Шаг 3: Извлечение значений, DCT, SVD (НА ТЕНЗОРАХ) ---
         try:
@@ -371,10 +770,13 @@ def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_id
             min_s = min(rv1_tensor.numel(), rv2_tensor.numel())
             if min_s == 0: return None
             if rv1_tensor.numel() != rv2_tensor.numel():
-                rv1_tensor = rv1_tensor[:min_s]; rv2_tensor = rv2_tensor[:min_s]
+                rv1_tensor = rv1_tensor[:min_s];
+                rv2_tensor = rv2_tensor[:min_s]
 
-            logging.debug(f"{prefix} rv1 stats: size={rv1_tensor.numel()}, mean={rv1_tensor.mean():.6e}, std={rv1_tensor.std():.6e}")
-            logging.debug(f"{prefix} rv2 stats: size={rv2_tensor.numel()}, mean={rv2_tensor.mean():.6e}, std={rv2_tensor.std():.6e}")
+            logging.debug(
+                f"{prefix} rv1 stats: size={rv1_tensor.numel()}, mean={rv1_tensor.mean():.6e}, std={rv1_tensor.std():.6e}")
+            logging.debug(
+                f"{prefix} rv2 stats: size={rv2_tensor.numel()}, mean={rv2_tensor.mean():.6e}, std={rv2_tensor.std():.6e}")
 
             # --- PyTorch DCT ---
             if not TORCH_DCT_AVAILABLE: raise RuntimeError("torch-dct not available")
@@ -383,7 +785,6 @@ def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_id
             if not torch.isfinite(d1_tensor).all() or not torch.isfinite(d2_tensor).all(): return None
             # *** ЛОГ: Первые DCT коэффициенты ***
             logging.debug(f"{prefix} DCT done. d1[0]={d1_tensor[0]:.6e}, d2[0]={d2_tensor[0]:.6e}")
-
 
             # --- PyTorch SVD ---
             s1_tensor = svd_torch_s1(d1_tensor)
@@ -396,24 +797,29 @@ def extract_single_bit(L1_tensor: torch.Tensor, L2_tensor: torch.Tensor, ring_id
             s2 = s2_tensor.item()
 
         except RuntimeError as torch_err:
-             logging.error(f"{prefix} PyTorch runtime error during Tensor DCT/SVD: {torch_err}", exc_info=True); return None
+            logging.error(f"{prefix} PyTorch runtime error during Tensor DCT/SVD: {torch_err}", exc_info=True);
+            return None
         except IndexError:
-             logging.warning(f"{prefix} Index error getting ring tensor values."); return None
+            logging.warning(f"{prefix} Index error getting ring tensor values.");
+            return None
         except Exception as e:
-             logging.error(f"{prefix} Error in Tensor DCT/SVD processing part: {e}", exc_info=True); return None
+            logging.error(f"{prefix} Error in Tensor DCT/SVD processing part: {e}", exc_info=True);
+            return None
 
         # --- Шаг 4: Принятие решения ---
-        eps = 1e-12; threshold = 1.0
+        eps = 1e-12;
+        threshold = 1.0
         if abs(s2) < eps:
-             logging.warning(f"{prefix} s2={s2:.2e} is close to zero. Unreliable ratio.")
-             return None
+            logging.warning(f"{prefix} s2={s2:.2e} is close to zero. Unreliable ratio.")
+            return None
 
         ratio = s1 / s2
         # --- Явное вычисление и логирование сравнения ---
         comparison_result = (ratio >= threshold)
         extracted_bit = 0 if comparison_result else 1
 
-        logging.info(f"{prefix} Decision: s1={s1:.8e}, s2={s2:.8e}, ratio={ratio:.8f}, threshold={threshold}, comparison (ratio >= threshold)={comparison_result}, extracted_bit={extracted_bit}")
+        logging.info(
+            f"{prefix} Decision: s1={s1:.8e}, s2={s2:.8e}, ratio={ratio:.8f}, threshold={threshold}, comparison (ratio >= threshold)={comparison_result}, extracted_bit={extracted_bit}")
 
         return extracted_bit
 
@@ -600,6 +1006,7 @@ def _extract_batch_worker(batch_args_list: List[Dict]) -> Dict[int, List[Optiona
             if pair_idx != -1: batch_results[pair_idx] = [None] * nrtu_effective
 
     return batch_results
+
 
 # --- Вспомогательная функция чтения кадров ---
 def read_required_frames_pyav(
@@ -891,331 +1298,286 @@ def generate_frame_pairs_opencv(video_path: str,
 # @profile
 def extract_watermark_from_video(
         frames: List[np.ndarray],
-        nr: int = N_RINGS,
-        nrtu: int = NUM_RINGS_TO_USE,
-        bp: int = BITS_PER_PAIR,
-        cps: int = CANDIDATE_POOL_SIZE,
-        ec: int = EMBED_COMPONENT,
-        expect_hybrid_ecc: bool = True,
-        max_expected_packets: int = 15,
-        ue: bool = USE_ECC,
-        bch_code: Optional[BCH_TYPE] = BCH_CODE_OBJECT,
-        device: Optional[torch.device] = None,
-        dtcwt_fwd: Optional[DTCWTForward] = None,
-        plb: int = PAYLOAD_LEN_BYTES,
-        mw: Optional[int] = MAX_WORKERS_EXTRACT
-) -> Optional[bytes]:
+        nr: int,
+        nrtu: int,
+        bp: int,
+        cps: int,
+        ec: int,
+        expect_hybrid_ecc: bool,
+        max_expected_packets: int,
+        ue: bool,
+        bch_code: Optional[BCH_TYPE],
+        device: Optional[torch.device],
+        dtcwt_fwd: Optional[DTCWTForward],
+        plb: int,
+        mw: Optional[int],
+        # Добавляем параметр для ngram_context_weight, если хотим его настраивать извне
+        ngram_weight_param: float = 0.6  # Значение по умолчанию
+) -> List[str]:  # ИЗМЕНЕНО: Возвращает список HEX-строк или пустой список
     """
     Основная функция извлечения ЦВЗ из предоставленного списка кадров.
-    Использует ThreadPoolExecutor для параллельной обработки пар.
+    Использует ThreadPoolExecutor и интеллектуальную стратегию голосования.
     """
-    if not frames:
-        logging.error("Список кадров пуст! Нечего извлекать.")
-        return None
+    # --- Проверки входных данных и доступности библиотек ---
     if not PYTORCH_WAVELETS_AVAILABLE or not TORCH_DCT_AVAILABLE:
-        logging.critical("Отсутствуют PyTorch Wavelets или Torch DCT!")
-        return None
+        logging.critical("Extract Watermark: Отсутствуют PyTorch Wavelets или Torch DCT!")
+        return []
+    if not frames:
+        logging.error("Extract Watermark: Список кадров пуст! Нечего извлекать.")
+        return []
     if device is None or dtcwt_fwd is None:
-        logging.critical("Device или DTCWTForward не переданы!")
-        return None
-    if ue and expect_hybrid_ecc and not GALOIS_AVAILABLE:
-        logging.error("ECC требуется для гибридного режима, но Galois недоступен!")
+        logging.critical("Extract Watermark: Device или DTCWTForward не переданы!")
+        return []
 
-    logging.info(f"--- Запуск Извлечения (из предоставленного списка {len(frames)} кадров, Параллельно) ---")
-    logging.info(f"Параметры: Hybrid={expect_hybrid_ecc}, MaxPkts={max_expected_packets}, NRTU={nrtu}, BP={bp}")
+    if ue and expect_hybrid_ecc and not GALOIS_AVAILABLE:
+        logging.warning(
+            "Extract Watermark: ECC требуется для гибридного режима, но Galois недоступен! Это повлияет на декодирование.")
+
+    logging.info(f"--- Extract Watermark: Запуск Извлечения (список {len(frames)} кадров, Intelligent Voting) ---")
+    logging.info(
+        f"Параметры: Hybrid={expect_hybrid_ecc}, MaxPkts={max_expected_packets}, NRTU={nrtu}, BP={bp}, NgramW={ngram_weight_param}")
     start_time = time.time()
 
     nf = len(frames)
     total_pairs_available = nf // 2
     if total_pairs_available == 0:
-        logging.error("В предоставленном списке нет пар кадров для обработки.")
-        return None
+        logging.error("Extract Watermark: В предоставленном списке нет пар кадров для обработки.")
+        return []
 
-    # --- Расчет необходимого количества пар и общей длины бит ---
     payload_len_bits = plb * 8
-    packet_len_if_ecc = payload_len_bits
+    message_len_for_ecc = payload_len_bits
+    actual_codeword_len_if_ecc = message_len_for_ecc
     packet_len_if_raw = payload_len_bits
     ecc_possible_for_first = False
-    bch_n = 0
 
-    if ue and GALOIS_AVAILABLE and bch_code is not None:
+    if ue and GALOIS_AVAILABLE and bch_code is not None and isinstance(bch_code, BCH_TYPE):
         try:
-            n = bch_code.n;
-            k = bch_code.k;
-            t_bch = bch_code.t
-            if payload_len_bits <= k:
-                packet_len_if_ecc = n;
-                bch_n = n;
+            if hasattr(bch_code, 'k') and hasattr(bch_code, 'n') and message_len_for_ecc <= bch_code.k:
+                actual_codeword_len_if_ecc = bch_code.n
                 ecc_possible_for_first = True
-                logging.info(f"ECC проверка: Возможно для 1-го пакета (n={n}, k={k}, t={t_bch}).")
+                logging.info(
+                    f"ECC проверка: Возможно для 1-го пакета (n={bch_code.n}, k={bch_code.k}, t={bch_code.t}).")
             else:
-                logging.warning(f"ECC проверка: Payload ({payload_len_bits}) > k ({k}).")
+                k_val = bch_code.k if hasattr(bch_code, 'k') else 'N/A'
+                logging.warning(f"ECC проверка: Payload ({message_len_for_ecc}) > k ({k_val}). ECC не будет применен.")
         except Exception as e_galois_check:
             logging.error(f"ECC проверка: Ошибка параметров Galois: {e_galois_check}.")
     else:
-        logging.info("ECC проверка: Выключен или недоступен.")
+        logging.info("ECC проверка: Либо USE_ECC=False, либо Galois недоступен/некорректен.")
 
     effective_expect_hybrid_ecc = expect_hybrid_ecc
     if effective_expect_hybrid_ecc and not ecc_possible_for_first:
-        logging.warning("Гибридный режим запрошен, но ECC для первого пакета невозможен. Переключение на Raw для всех.")
+        logging.warning(
+            "Гибридный режим запрошен, но ECC для первого пакета невозможен/не настроен. Все пакеты будут обрабатываться как Raw.")
         effective_expect_hybrid_ecc = False
 
-    max_possible_bits = 0
+    max_possible_bits_to_extract = 0
     if effective_expect_hybrid_ecc:
-        max_possible_bits = packet_len_if_ecc + max(0, max_expected_packets - 1) * packet_len_if_raw
+        max_possible_bits_to_extract = actual_codeword_len_if_ecc + max(0, max_expected_packets - 1) * packet_len_if_raw
     else:
-        current_packet_len_for_calc = packet_len_if_ecc if ue and ecc_possible_for_first else packet_len_if_raw
-        max_possible_bits = max_expected_packets * current_packet_len_for_calc
+        len_of_each_packet = actual_codeword_len_if_ecc if ue and ecc_possible_for_first and not effective_expect_hybrid_ecc else packet_len_if_raw
+        max_possible_bits_to_extract = max_expected_packets * len_of_each_packet
 
-    if bp <= 0: logging.error("Bits per pair (bp) <= 0!"); return None
-    pairs_needed = ceil(max_possible_bits / bp) if max_possible_bits > 0 else 0
+    if bp <= 0:
+        logging.error(f"Bits per pair (bp) должен быть > 0, получено: {bp}")
+        return []
 
+    pairs_needed = ceil(max_possible_bits_to_extract / bp) if max_possible_bits_to_extract > 0 else 0
     pairs_to_process = min(total_pairs_available, pairs_needed)
-    logging.info(f"Цель извлечения: до {max_expected_packets} пакетов (~{max_possible_bits} бит).")
+
+    logging.info(f"Цель извлечения: до {max_expected_packets} пакетов (~{max_possible_bits_to_extract} бит).")
     logging.info(
-        f"Пар кадров: Доступно в списке={total_pairs_available}, Нужно={pairs_needed}, Будет обработано={pairs_to_process}")
+        f"Пар кадров: Доступно={total_pairs_available}, Нужно={pairs_needed}, Будет обработано={pairs_to_process}")
 
     if pairs_to_process == 0:
         logging.warning("Нечего обрабатывать (pairs_to_process=0).")
-        return None
+        return []
 
-    # --- Подготовка аргументов для батчей ---
-    all_pairs_args = []
-    skipped_pairs = 0
-    for pair_idx in range(pairs_to_process):
-        i1 = 2 * pair_idx
-        i2 = i1 + 1
+    all_pairs_args: List[Dict[str, Any]] = []
+    for pair_idx_prep in range(pairs_to_process):
+        i1, i2 = 2 * pair_idx_prep, 2 * pair_idx_prep + 1
         if i2 >= nf:
-            logging.error(
-                f"Критическая ошибка: Индекс i2={i2} выходит за пределы списка кадров (длина {nf}) при pair_idx={pair_idx}.")
+            logging.warning(f"Недостаточно кадров для пары {pair_idx_prep}.")
             break
-        frame1 = frames[i1]
-        frame2 = frames[i2]
-        if frame1 is None or frame2 is None:
-            logging.warning(f"Пропуск пары {pair_idx}: один из кадров None в предоставленном списке.")
-            skipped_pairs += 1
-            continue  # Пропуск эту пары
-
-        args = {'pair_idx': pair_idx,
-                'frame1': frame1.copy(),
-                'frame2': frame2.copy(),
-                'n_rings': nr, 'num_rings_to_use': nrtu,
-                'candidate_pool_size': cps, 'embed_component': ec,
-                'device': device, 'dtcwt_fwd': dtcwt_fwd}
+        if frames[i1] is None or frames[i2] is None:
+            logging.warning(f"Пропуск пары {pair_idx_prep}: один из кадров None.")
+            continue
+        args = {'pair_idx': pair_idx_prep, 'frame1': frames[i1].copy(), 'frame2': frames[i2].copy(),
+                'n_rings': nr, 'num_rings_to_use': nrtu, 'candidate_pool_size': cps,
+                'embed_component': ec, 'device': device, 'dtcwt_fwd': dtcwt_fwd}
         all_pairs_args.append(args)
 
     num_valid_tasks = len(all_pairs_args)
     if num_valid_tasks == 0:
-        logging.error("Не создано ни одной валидной задачи для ThreadPoolExecutor.")
-        return None
-    if skipped_pairs > 0:
-        logging.warning(f"Было пропущено {skipped_pairs} пар из-за None кадров.")
+        logging.error("Нет валидных задач для ThreadPoolExecutor.")
+        return []
     if num_valid_tasks < pairs_to_process:
-        logging.warning(
-            f"Количество валидных задач ({num_valid_tasks}) меньше, чем изначально планировалось ({pairs_to_process}). Обновляем pairs_to_process.")
+        logging.info(f"Задач ({num_valid_tasks}) < планировалось ({pairs_to_process}). Обновляем pairs_to_process.")
         pairs_to_process = num_valid_tasks
-        if pairs_to_process == 0:
-            logging.error("После пропусков не осталось задач для обработки.")
-            return None
 
-    # --- Запуск ThreadPoolExecutor ---
-    num_workers = mw if mw is not None and mw > 0 else 1
-    batch_size = max(1, ceil(num_valid_tasks / num_workers));
-    batched_args_list = [all_pairs_args[i: i + batch_size] for i in range(0, pairs_to_process, batch_size) if
-                         all_pairs_args[i:i + batch_size]]
-    actual_num_batches = len(batched_args_list)
-    logging.info(
-        f"Запуск {actual_num_batches} батчей ({pairs_to_process} пар) в ThreadPool (mw={num_workers}, batch_size≈{batch_size})...")
+    if pairs_to_process == 0:
+        logging.warning("Не осталось пар для обработки после фильтрации.")
+        return []
 
-    executor = ThreadPoolExecutor(max_workers=num_workers)
-    futures_map: Dict[concurrent.futures.Future, int] = {}
+    num_workers = mw if mw is not None and mw > 0 else (os.cpu_count() or 1)
+    num_workers = min(num_workers, num_valid_tasks)
+    batch_size_calc = num_valid_tasks / (num_workers * 2) if num_workers > 0 else num_valid_tasks
+    batch_size = max(1, ceil(batch_size_calc))
+
+    batched_args_list: List[List[Dict[str, Any]]] = []
+    if all_pairs_args:
+        batched_args_list = [all_pairs_args[i: i + batch_size] for i in range(0, num_valid_tasks, batch_size) if
+                             all_pairs_args[i:i + batch_size]]
+
     extracted_bits_map: Dict[int, List[Optional[int]]] = {}
-
-    processed_pairs_from_futures = 0
-    errors_in_futures = 0
-
-    try:
-        for i, batch in enumerate(batched_args_list):
-            first_pair_idx_in_batch = batch[0]['pair_idx'] if batch else (i * batch_size)
-            future = executor.submit(_extract_batch_worker, batch)
-            futures_map[future] = first_pair_idx_in_batch
-
-        # --- Ожидание результатов ---
-        logging.info(f"Все задачи ({len(futures_map)} батчей) отправлены. Ожидание результатов...")
-        for future in concurrent.futures.as_completed(futures_map):
-            batch_start_pair_index = futures_map.get(future, -1)
-            try:
-                batch_results_map = future.result()  #Dict[int, List[Optional[int]]]
-                if batch_results_map:
-                    extracted_bits_map.update(batch_results_map)
-                    processed_pairs_from_futures += len(batch_results_map)
-                    errors_in_futures += sum(
-                        1 for bits_list in batch_results_map.values() if bits_list is None or None in bits_list)
-            except Exception as e_future:
-                logging.error(
-                    f"Ошибка выполнения батча (начинающегося примерно с пары {batch_start_pair_index}): {e_future}",
-                    exc_info=True)
-
-    except Exception as e_executor:
-        logging.critical(f"Критическая ошибка ThreadPoolExecutor: {e_executor}", exc_info=True)
-        if 'executor' in locals() and executor: executor.shutdown(wait=False, cancel_futures=True)
-        return None
-    finally:
-        if 'executor' in locals() and executor:
-            executor.shutdown(wait=True)
-            logging.debug("ThreadPoolExecutor остановлен.")
-
-    logging.info(f"Обработка задач завершена. Пар с результатом из воркеров: {processed_pairs_from_futures}. "
-                 f"Из них с ошибками извлечения (None в битах): {errors_in_futures}.")
+    if batched_args_list:
+        logging.info(
+            f"Запуск {len(batched_args_list)} батчей ({num_valid_tasks} пар) в ThreadPoolExecutor (mw={num_workers}, batch_size≈{batch_size})...")
+        try:
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                future_to_batch_info = {
+                    executor.submit(_extract_batch_worker, batch_arg_list): {  # type: ignore
+                        'start_pair_idx': batch_arg_list[0]['pair_idx'] if batch_arg_list else -1,
+                        'num_pairs_in_batch': len(batch_arg_list)
+                    } for batch_arg_list in batched_args_list
+                }
+                for future in concurrent.futures.as_completed(future_to_batch_info):
+                    batch_info = future_to_batch_info[future]
+                    try:
+                        batch_results_map = future.result()
+                        if batch_results_map: extracted_bits_map.update(batch_results_map)
+                    except Exception as e_future:
+                        logging.error(
+                            f"Ошибка выполнения батча (начинающегося с пары ~{batch_info['start_pair_idx']}, {batch_info['num_pairs_in_batch']} пар): {e_future}",
+                            exc_info=True)
+        except Exception as e_executor:
+            logging.critical(f"Критическая ошибка ThreadPoolExecutor: {e_executor}", exc_info=True)
+            return []
+    else:
+        logging.warning("Нет батчей для обработки в ThreadPoolExecutor.")
 
     if not extracted_bits_map and pairs_to_process > 0:
-        logging.error("Ни одной пары не было успешно обработано (карта результатов пуста).")
-        return None
+        logging.error("Ни одной пары не было успешно обработано (карта результатов извлеченных бит пуста).")
+        return []
 
-    # --- Сборка бит ---
     extracted_bits_all: List[Optional[int]] = []
-    logging.info(f"Сборка бит для {pairs_to_process} запланированных пар...")
-
     for pair_idx_loop in range(pairs_to_process):
-        bits = extracted_bits_map.get(pair_idx_loop)
-        if bits and isinstance(bits, list) and len(bits) == bp:
-            extracted_bits_all.extend(bits)
+        bits_from_pair = extracted_bits_map.get(pair_idx_loop)
+        if bits_from_pair and isinstance(bits_from_pair, list) and len(bits_from_pair) == bp:
+            extracted_bits_all.extend(bits_from_pair)
         else:
-            if pair_idx_loop in extracted_bits_map:
-                logging.warning(
-                    f"Пара {pair_idx_loop}: Некорректный результат в карте ({len(bits) if isinstance(bits, list) else type(bits)}). Добавляем None * {bp}")
-            else:
-                logging.debug(
-                    f"Пара {pair_idx_loop}: Нет результата в карте (вероятно, ошибка батча или не дошла очередь). Добавляем None * {bp}")
             extracted_bits_all.extend([None] * bp)
 
-    total_bits_collected = len(extracted_bits_all)
-    valid_bits = [b for b in extracted_bits_all if b is not None and b in (0, 1)]
-    num_valid_bits = len(valid_bits)
-    num_error_bits = total_bits_collected - num_valid_bits
-    success_rate = (num_valid_bits / total_bits_collected) * 100 if total_bits_collected > 0 else 0
+    valid_bits_for_decoding = [b for b in extracted_bits_all if b is not None and b in (0, 1)]
     logging.info(
-        f"Сборка бит: Собрано={total_bits_collected}, Валидных={num_valid_bits} ({success_rate:.1f}%), Ошибок/None={num_error_bits}.")
-    if not valid_bits: logging.error("Нет валидных бит (0/1) для декодирования."); return None
+        f"Сборка бит: Всего извлечено (с None): {len(extracted_bits_all)}, Валидных (0/1): {len(valid_bits_for_decoding)}.")
+    if not valid_bits_for_decoding:
+        logging.error("Нет валидных бит (0/1) для декодирования.")
+        return []
 
-    # --- Гибридное Декодирование Пакетов ---
-    all_payload_attempts_bits: List[Optional[List[int]]] = []
-    decoded_success_count = 0;
-    decode_failed_count = 0;
-    total_corrected_symbols = 0
-    num_processed_bits = 0
-    print("\n--- Попытки Декодирования Пакетов ---")
-    print(f"{'Pkt #':<6} | {'Type':<7} | {'ECC Status':<18} | {'Corrected':<10} | {'Payload (Hex)':<20}");
-    print("-" * 68)
+        # --- Формирование all_packets_details для intelligent_voting_strategy ---
+    all_packets_details: List[Dict[str, Any]] = []
+    num_processed_bits_for_packets = 0
+
+    print("\n--- Анализ и Декодирование Пакетов для Intelligent Voting ---")
+    print(f"{'Pkt #':<6} | {'Type':<7} | {'Status':<30} | {'Corrected':<10} | {'Payload HEX':<18}")
+    print("-" * (6 + 8 + 31 + 11 + 19))
+
     for i in range(max_expected_packets):
-        is_first_packet = (i == 0);
-        use_ecc_for_this = is_first_packet and expect_hybrid_ecc and ecc_possible_for_first
-        current_packet_len = packet_len_if_ecc if use_ecc_for_this else packet_len_if_raw
-        packet_type_str = "ECC" if use_ecc_for_this else "Raw"
-        start_idx = num_processed_bits;
-        end_idx = start_idx + current_packet_len
-        if end_idx > num_valid_bits: logging.warning(f"Не хватает бит для пакета {i + 1}."); break
-        packet_candidate_bits = valid_bits[start_idx:end_idx];
-        num_processed_bits += current_packet_len
-        payload_bytes: Optional[bytes] = None;
-        payload_bits: Optional[List[int]] = None;
-        errors: int = -1
-        status_str = f"Failed ({packet_type_str})";
-        payload_hex_str = "N/A"
-        if use_ecc_for_this:
-            if bch_code is not None:
-                payload_bytes, errors = decode_ecc(packet_candidate_bits, bch_code, plb)
-                if payload_bytes is not None:
-                    status_str = f"OK (ECC: {(errors if errors != -1 else 0)} fixed)"; total_corrected_symbols += max(0,
-                                                                                                                      errors)
-                else:
-                    status_str = f"Uncorrectable(ECC)" if errors == -1 else "ECC Decode Err"
-            else:
-                status_str = "ECC Code Miss"
-        else:
-            if len(packet_candidate_bits) >= payload_len_bits:
-                payload_bytes_raw = bits_to_bytes(packet_candidate_bits[:payload_len_bits])
-                if payload_bytes_raw is not None and len(payload_bytes_raw) == plb:
-                    payload_bytes = payload_bytes_raw; errors = 0; status_str = "OK (Raw)"
-                else:
-                    status_str = "Fail (Raw Conv)"
-            else:
-                status_str = "Fail (Raw Short)"
-        if payload_bytes is not None:
-            payload_hex_str = payload_bytes.hex()
-            try:
-                payload_np_bits = np.unpackbits(np.frombuffer(payload_bytes, dtype=np.uint8))
-                if len(payload_np_bits) == payload_len_bits:
-                    payload_bits = payload_np_bits.tolist(); decoded_success_count += 1
-                else:
-                    status_str += "[Len Fail]"; payload_bits = None
-            except Exception:
-                status_str += "[Unpack Fail]"; payload_bits = None
-        if payload_bits is None: decode_failed_count += 1
-        all_payload_attempts_bits.append(payload_bits)
-        corrected_str = str(errors) if errors >= 0 else "-"
-        print(f"{i + 1:<6} | {packet_type_str:<7} | {status_str:<18} | {corrected_str:<10} | {payload_hex_str:<20}")
-    print("-" * 68);
-    logging.info(
-        f"Итоги декодирования: Попыток={len(all_payload_attempts_bits)}, Успешно={decoded_success_count}, Ошибок={decode_failed_count}.")
-    if ecc_possible_for_first and expect_hybrid_ecc: logging.info(
-        f"Всего исправлено ECC символов: {total_corrected_symbols}.")
+        is_first_packet = (i == 0)
+        use_ecc_for_this_packet = is_first_packet and effective_expect_hybrid_ecc and ecc_possible_for_first and ue
 
-    # --- Побитовое Голосование ---
-    if not all_payload_attempts_bits: logging.error("Нет пакетов для голосования."); return None
-    first_packet_payload = all_payload_attempts_bits[0]
-    valid_decoded_payloads = [p for p in all_payload_attempts_bits if p is not None and len(p) == payload_len_bits]
-    num_valid_packets_for_vote = len(valid_decoded_payloads)
-    if num_valid_packets_for_vote == 0: logging.error(
-        f"Нет валидных {payload_len_bits}-бит пакетов для голосования."); return None
-    final_payload_bits = []
-    logging.info(f"Голосование по {num_valid_packets_for_vote} валидным пакетам...")
-    print("\n--- Результаты Голосования по Битам ---")
-    print(f"{'Bit Pos':<8} | {'Votes 0':<8} | {'Votes 1':<8} | {'Winner':<8} | {'Tiebreak?':<10}");
-    print("-" * 50)
-    for j in range(payload_len_bits):
-        votes_for_0 = 0;
-        votes_for_1 = 0
-        for i in range(num_valid_packets_for_vote):
-            if j < len(valid_decoded_payloads[i]):
-                if valid_decoded_payloads[i][j] == 1:
-                    votes_for_1 += 1
-                else:
-                    votes_for_0 += 1
-        winner_bit: Optional[int] = None;
-        tiebreak_used = "No"
-        valid_votes_count = votes_for_0 + votes_for_1
-        if valid_votes_count == 0:
-            final_payload_bits = None; logging.error(f"Bit {j}: Нет голосов!"); break
-        elif votes_for_1 > votes_for_0:
-            winner_bit = 1
-        elif votes_for_0 > votes_for_1:
-            winner_bit = 0
-        else:
-            tiebreak_used = "Yes"
-            if first_packet_payload is not None and j < len(first_packet_payload):
-                winner_bit = first_packet_payload[j]
+        packet_type_for_info = "ECC" if use_ecc_for_this_packet else "RAW"
+        len_bits_to_take = actual_codeword_len_if_ecc if use_ecc_for_this_packet else packet_len_if_raw
+
+        if num_processed_bits_for_packets + len_bits_to_take > len(valid_bits_for_decoding):
+            logging.warning(
+                f"Недостаточно бит для пакета {i + 1} (ожидалось {len_bits_to_take}, доступно {len(valid_bits_for_decoding) - num_processed_bits_for_packets}).")
+            break
+
+        current_input_bits_for_packet = valid_bits_for_decoding[
+                                        num_processed_bits_for_packets: num_processed_bits_for_packets + len_bits_to_take]
+        num_processed_bits_for_packets += len_bits_to_take
+
+        packet_details_entry: Dict[str, Any] = {
+            'payload_bits': None,
+            'packet_type': packet_type_for_info,
+            'corrected_errors': 0,  # По умолчанию для RAW или если ECC не сработал/не применялся
+            'source_packet_index': i,  # Добавим индекс для отладки
+            'hex': "N/A"  # Для лога
+        }
+        status_msg_for_log = "Failed to process"
+
+        if use_ecc_for_this_packet:
+            # decode_ecc возвращает (Optional[List[int] сообщения], int исправленных_ошибок)
+            message_bits, corrected_count = decode_ecc(current_input_bits_for_packet, bch_code, plb)
+            packet_details_entry['corrected_errors'] = corrected_count
+
+            if message_bits is not None and len(message_bits) == payload_len_bits:
+                packet_details_entry['payload_bits'] = message_bits
+                # Конвертируем в байты для HEX только если биты валидны
+                temp_bytes = bits_to_bytes_strict(message_bits, plb)
+                if temp_bytes: packet_details_entry['hex'] = temp_bytes.hex()
+                status_msg_for_log = f"OK (ECC, {corrected_count if corrected_count != -1 else 'N/A'} fixed)"
             else:
-                final_payload_bits = None; logging.error(f"Bit {j}: Ничья, не разрешена!"); break
-        if winner_bit is None: final_payload_bits = None; logging.error(f"Bit {j}: Winner is None!"); break
-        final_payload_bits.append(winner_bit)
-        print(f"{j:<8} | {votes_for_0:<8} | {votes_for_1:<8} | {winner_bit:<8} | {tiebreak_used:<10}")
-    print("-" * 50)
-    if final_payload_bits is None: logging.error("Голосование не удалось."); return None
-    logging.info(f"Голосование завершено.")
+                if message_bits is None:  # Ошибка декодирования ECC
+                    status_msg_for_log = f"Fail (ECC Uncorrectable)" if corrected_count == -1 else f"Fail (ECC Decode Err, c:{corrected_count})"
+                else:  # Длина полезной нагрузки после декодирования не совпала
+                    status_msg_for_log = f"Fail (ECC Decoded Msg Len Mismatch: {len(message_bits)}!={payload_len_bits})"
+                    logging.error(f"Pkt {i + 1} (ECC): ошибка длины сообщения {len(message_bits)}!={payload_len_bits}")
+                # 'payload_bits' останется None
+        else:  # RAW packet
+            if len(current_input_bits_for_packet) >= payload_len_bits:
+                raw_msg_bits = current_input_bits_for_packet[:payload_len_bits]
+                packet_details_entry['payload_bits'] = raw_msg_bits
+                # corrected_errors для RAW остается 0
+                temp_bytes = bits_to_bytes_strict(raw_msg_bits, plb)
+                if temp_bytes: packet_details_entry['hex'] = temp_bytes.hex()
+                status_msg_for_log = "OK (RAW)"
+            else:
+                status_msg_for_log = f"Fail (RAW too short: got {len(current_input_bits_for_packet)}, need {payload_len_bits})"
+                # 'payload_bits' останется None
 
-    # --- Конвертация и возврат результата ---
-    final_payload_bytes = bits_to_bytes(final_payload_bits)
-    if final_payload_bytes is None: logging.error("Конвертация бит в байты не удалась."); return None
-    if len(final_payload_bytes) != plb: logging.error(
-        f"Финальная длина ({len(final_payload_bytes)}B) != ожидаемой ({plb}B)."); return None
-    logging.info(f"Финальный ID после голосования: {final_payload_bytes.hex()}")
-    end_time = time.time();
-    logging.info(f"Извлечение завершено. Общее время: {end_time - start_time:.2f} сек.")
-    return final_payload_bytes
+        # Добавляем в общий список только если payload_bits не None (т.е. пакет успешно обработан до уровня сообщения)
+        if packet_details_entry['payload_bits'] is not None:
+            all_packets_details.append(packet_details_entry)
 
+        # Логирование для каждого пакета
+        corrected_display_str = str(packet_details_entry['corrected_errors']) \
+            if packet_details_entry['packet_type'] == 'ECC' and packet_details_entry['corrected_errors'] != -1 else "-"
+        print(
+            f"{i + 1:<6} | {packet_details_entry['packet_type']:<7} | {status_msg_for_log:<30} | {corrected_display_str:<10} | {packet_details_entry['hex']:<18}")
+
+    print("-" * (6 + 8 + 31 + 11 + 19))
+    logging.info(f"Intelligent Voting Prep: Собрано {len(all_packets_details)} валидных пакетов для голосования.")
+
+    if not all_packets_details:  # Если после всех попыток нет ни одного валидного пакета
+        logging.error("Нет валидных декодированных пакетов для intelligent_voting_strategy.")
+        return []
+
+        # --- Вызов Новой Функции Голосования ---
+    final_hex_candidates_list = intelligent_voting_strategy(
+        valid_packets_info=all_packets_details,
+        payload_len_bytes=plb,
+        ngram_context_weight=ngram_weight_param  # Используем параметр функции
+    )
+
+    end_time = time.time()
+    processing_duration_val_run = end_time - start_time
+    logging.info(f"Извлечение ЦВЗ завершено. Общее время: {processing_duration_val_run:.2f} сек.")
+
+    if not final_hex_candidates_list:
+        logging.error("Intelligent voting не вернуло кандидатов.")
+    elif len(final_hex_candidates_list) == 1:
+        logging.info(f"Финальный извлеченный ID (1 кандидат): {final_hex_candidates_list[0]}")
+    else:
+        logging.warning(f"Извлечено несколько возможных кандидатов ID: {', '.join(final_hex_candidates_list)}")
+
+    return final_hex_candidates_list
 
 # --- Функция main ---
+# --- Ваша функция main ---
+# @profile # Если используете line_profiler
 def main() -> int:
     """
     Основная функция запуска экстрактора ЦВЗ.
@@ -1223,133 +1585,143 @@ def main() -> int:
     функции извлечения, которая использует ThreadPoolExecutor.
     """
     main_start_time = time.time()
+    # Используем глобальную LOG_FILENAME
     logging.info(f"--- Запуск Основного Процесса Извлечения (OpenCV Limited Read + ThreadPool) ---")
 
-    # --- Инициализация PyTorch и Проверки ---
+    # Глобальные флаги доступности библиотек (PYTORCH_WAVELETS_AVAILABLE и т.д.)
+    # и объекты (BCH_CODE_OBJECT, device, dtcwt_fwd) должны быть уже инициализированы
+    # в блоке if __name__ == "__main__" или глобально в начале скрипта.
+
+    # Проверки основных библиотек (как в вашем коде)
     if not PYTORCH_WAVELETS_AVAILABLE or not TORCH_DCT_AVAILABLE:
         print("ERROR: PyTorch libraries required.");
         logging.critical("Критические PyTorch библиотеки не найдены.")
         return 1
-    if USE_ECC and not GALOIS_AVAILABLE:
-        global_expect_hybrid_ecc = globals().get('expect_hybrid_ecc_global', USE_ECC)
-        if global_expect_hybrid_ecc:
-            print("\nWARNING: ECC requested for hybrid mode but galois unavailable.")
-            logging.warning("Galois недоступен, ECC для гибридного режима не будет работать.")
 
+    # Глобальная current_expect_hybrid_ecc или USE_ECC
+    # В вашем коде main current_expect_hybrid_ecc берется из globals().get('expect_hybrid_ecc', True)
+    # Я оставлю это, но лучше определить expect_hybrid_ecc_global в начале файла.
+    current_expect_hybrid_ecc = globals().get('expect_hybrid_ecc_global', USE_ECC)
+
+    if USE_ECC and current_expect_hybrid_ecc and not GALOIS_AVAILABLE:
+        # print("\nWARNING: ECC requested for hybrid mode but galois unavailable.") # Уже в __main__
+        logging.warning("Galois недоступен, ECC для гибридного режима не будет работать (проверка в main).")
+
+    # Инициализация device и dtcwt_fwd (как в вашем коде main)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
         try:
             _ = torch.tensor([1.0], device=device)
             logging.info(f"Используется CUDA: {torch.cuda.get_device_name(0)}")
-        except RuntimeError as e_cuda_init:
-            logging.error(f"Ошибка CUDA: {e_cuda_init}. Переключение на CPU.")
+        except RuntimeError as e_cuda_init_main:
+            logging.error(f"Ошибка CUDA в main: {e_cuda_init_main}. Переключение на CPU.")
             device = torch.device("cpu")
     else:
         logging.info("Используется CPU.")
 
     dtcwt_fwd: Optional[DTCWTForward] = None
-    if PYTORCH_WAVELETS_AVAILABLE:
+    DTCWTForwardTypeInMain = globals().get('DTCWTForward')
+    if PYTORCH_WAVELETS_AVAILABLE and DTCWTForwardTypeInMain:
         try:
-            dtcwt_fwd = DTCWTForward(J=1, biort='near_sym_a', qshift='qshift_a').to(device)
-            logging.info("PyTorch DTCWTForward instance created.")
-        except Exception as e_dtcwt:
-            logging.critical(f"Failed to init DTCWTForward: {e_dtcwt}", exc_info=True)
+            if DTCWTForwardTypeInMain.__name__ != 'Any':
+                dtcwt_fwd = DTCWTForwardTypeInMain(J=1, biort='near_sym_a', qshift='qshift_a').to(device)
+                logging.info("PyTorch DTCWTForward instance created in main.")
+            else:  # Заглушка
+                # dtcwt_fwd = DTCWTForwardTypeInMain() # Не сработает, если Any - это просто type
+                logging.warning(
+                    "DTCWTForward is Any in main, dtcwt_fwd may remain None if not properly initialized globally.")
+                # Если dtcwt_fwd останется None, extract_watermark_from_video должна это обработать
+        except Exception as e_dtcwt_in_main:
+            logging.critical(f"Failed to init DTCWTForward in main: {e_dtcwt_in_main}", exc_info=True)
             return 1
+    elif PYTORCH_WAVELETS_AVAILABLE and not DTCWTForwardTypeInMain:
+        logging.critical("Тип DTCWTForward не найден (None) в main, хотя PYTORCH_WAVELETS_AVAILABLE=True.")
+        return 1
     else:
-        logging.critical("PyTorch Wavelets недоступен!")
+        logging.critical("PyTorch Wavelets недоступен (проверено в main)!")
         return 1
 
-    input_base = f"watermarked_ffmpeg_t9"
-    input_video = input_base + INPUT_EXTENSION
-    original_id: Optional[str] = None
+    # BCH_CODE_OBJECT используется extract_watermark_from_video,
+    # он должен быть инициализирован в __main__ и быть доступен глобально.
+    if USE_ECC and GALOIS_AVAILABLE and BCH_CODE_OBJECT is None:
+        logging.warning("BCH_CODE_OBJECT is None в main. ECC может не работать.")
 
+    # Определение имени входного файла (используем глобальные константы)
+    input_base = f"watermarked_ffmpeg_t{BCH_T}"  # Глобальная BCH_T
+    input_video_path = input_base + INPUT_EXTENSION  # Глобальная INPUT_EXTENSION
+
+    # Загрузка оригинального ID из файла (ВАШ КОД)
+    original_id: Optional[str] = None
     if os.path.exists(ORIGINAL_WATERMARK_FILE):
         try:
             with open(ORIGINAL_WATERMARK_FILE, "r", encoding='utf-8') as f_id:
                 original_id = f_id.read().strip()
             if not (original_id and len(original_id) == PAYLOAD_LEN_BYTES * 2):
-                logging.error(f"ID в '{ORIGINAL_WATERMARK_FILE}' неверной длины.")
+                logging.warning(f"ID в '{ORIGINAL_WATERMARK_FILE}' неверной длины или пуст.")
                 original_id = None
             else:
-                int(original_id, 16)
-                logging.info(f"Original ID loaded: {original_id}")
+                bytes.fromhex(original_id)  # Проверка на HEX
+                logging.info(f"Original ID loaded из TXT: {original_id}")
         except ValueError:
-            logging.error(f"ID в '{ORIGINAL_WATERMARK_FILE}' не hex.");
+            logging.warning(f"ID в '{ORIGINAL_WATERMARK_FILE}' не является валидным HEX.")
             original_id = None
-        except Exception as e_read_id:
-            logging.error(f"Ошибка чтения ID: {e_read_id}");
+        except Exception as e_read_id_main:
+            logging.error(f"Ошибка чтения ID из TXT: {e_read_id_main}")
             original_id = None
     else:
         logging.warning(f"Файл ID '{ORIGINAL_WATERMARK_FILE}' не найден.")
 
-    logging.info(f"--- Начало извлечения из файла: '{input_video}' ---")
-    if not os.path.exists(input_video):
-        logging.critical(f"Входной файл не найден: '{input_video}'.");
-        print(f"ОШИБКА: Файл не найден: '{input_video}'");
+    logging.info(f"--- Начало извлечения из файла: '{input_video_path}' ---")
+    if not os.path.exists(input_video_path):
+        logging.critical(f"Входной файл не найден: '{input_video_path}'.")
+        print(f"ОШИБКА: Файл не найден: '{input_video_path}'")
         return 1
 
-    # --- Расчет необходимого числа кадров для чтения ---
-    payload_len_bits = PAYLOAD_LEN_BYTES * 8
-    packet_len_if_ecc = payload_len_bits
-    packet_len_if_raw = payload_len_bits
-    ecc_possible_for_first_calc = False
+    # --- Расчет необходимого числа кадров для чтения (ВАШ КОД) ---
+    payload_len_bits_calc = PAYLOAD_LEN_BYTES * 8
+    packet_len_if_ecc_calc = payload_len_bits_calc
+    packet_len_if_raw_calc = payload_len_bits_calc
+    ecc_possible_for_first_calc_main = False
+    actual_codeword_len_calc_main_run = payload_len_bits_calc  # Инициализация
 
     if USE_ECC and GALOIS_AVAILABLE and BCH_CODE_OBJECT is not None:
         try:
-            if payload_len_bits <= BCH_CODE_OBJECT.k:
-                packet_len_if_ecc = BCH_CODE_OBJECT.n
-                ecc_possible_for_first_calc = True
+            if hasattr(BCH_CODE_OBJECT, 'k') and hasattr(BCH_CODE_OBJECT, 'n'):
+                if payload_len_bits_calc <= BCH_CODE_OBJECT.k:
+                    actual_codeword_len_calc_main_run = BCH_CODE_OBJECT.n
+                    ecc_possible_for_first_calc_main = True
         except Exception:
             pass
 
-    current_expect_hybrid_ecc = globals().get('expect_hybrid_ecc', True)
-
-    expect_hybrid_for_calc = current_expect_hybrid_ecc
-    if expect_hybrid_for_calc and not ecc_possible_for_first_calc:
-        expect_hybrid_for_calc = False
-
-    max_possible_bits = 0
-    if expect_hybrid_for_calc:
-        max_possible_bits = packet_len_if_ecc + max(0, MAX_TOTAL_PACKETS_global - 1) * packet_len_if_raw
+    expect_hybrid_for_calc_run = current_expect_hybrid_ecc
+    if expect_hybrid_for_calc_run and not ecc_possible_for_first_calc_main:
+        expect_hybrid_for_calc_run = False
+    max_possible_bits_run = 0
+    if expect_hybrid_for_calc_run:
+        max_possible_bits_run = actual_codeword_len_calc_main_run + max(0,
+                                                                        MAX_TOTAL_PACKETS_global - 1) * packet_len_if_raw_calc
     else:
-        current_packet_len_for_calc = packet_len_if_ecc if USE_ECC and ecc_possible_for_first_calc else packet_len_if_raw
-        max_possible_bits = MAX_TOTAL_PACKETS_global * current_packet_len_for_calc
-
+        current_packet_len_for_calc_run = actual_codeword_len_calc_main_run if USE_ECC and ecc_possible_for_first_calc_main and not expect_hybrid_for_calc_run else packet_len_if_raw_calc
+        max_possible_bits_run = MAX_TOTAL_PACKETS_global * current_packet_len_for_calc_run
     if BITS_PER_PAIR <= 0: logging.critical("BITS_PER_PAIR <= 0!"); return 1
-    pairs_needed_for_extract = ceil(max_possible_bits / BITS_PER_PAIR) if max_possible_bits > 0 else 0
-
-    if pairs_needed_for_extract == 0:
-        logging.error("Не требуется обрабатывать ни одной пары (согласно расчетам).")
-        return 1
-
+    pairs_needed_for_extract = math.ceil(max_possible_bits_run / BITS_PER_PAIR) if max_possible_bits_run > 0 else 0
+    if pairs_needed_for_extract == 0: logging.error("Расчет: 0 пар."); return 1
     num_frames_to_read = pairs_needed_for_extract * 2
-    logging.info(
-        f"Требуется обработать {pairs_needed_for_extract} пар, необходимо прочитать {num_frames_to_read} кадров.")
+    logging.info(f"Требуется {pairs_needed_for_extract} пар, читаем {num_frames_to_read} кадров.")
 
     read_start_time = time.time()
-    logging.info(f"Чтение первых {num_frames_to_read} кадров с помощью OpenCV из '{input_video}'...")
-    video_stream_idx_to_read: Optional[int] = 0  # Или None, чтобы функция выбрала первый сама
-
-    logging.info(
-        f"Чтение первых {num_frames_to_read} кадров с помощью PyAV из '{input_video}' (поток: {video_stream_idx_to_read if video_stream_idx_to_read is not None else 'авто'})")
-
-    frames_for_extraction = read_required_frames_pyav(input_video, num_frames_to_read, preferred_video_stream_index=video_stream_idx_to_read)
+    # В вашем коде был вызов read_required_frames_pyav
+    logging.info(f"Чтение первых {num_frames_to_read} кадров с помощью PyAV из '{input_video_path}'...")
+    video_stream_idx_to_read: Optional[int] = 0
+    frames_for_extraction = read_required_frames_pyav(input_video_path, num_frames_to_read,
+                                                      preferred_video_stream_index=video_stream_idx_to_read)
     read_time = time.time() - read_start_time
 
-    if frames_for_extraction is None:
-        logging.critical("Критическая ошибка при чтении необходимых кадров. Прерывание.")
-        return 1
+    if frames_for_extraction is None: logging.critical("Ошибка чтения кадров."); return 1
+    logging.info(f"Прочитано {len(frames_for_extraction)} кадров за {read_time:.2f} сек.")
+    if len(frames_for_extraction) < 2: logging.error(f"Слишком мало кадров: {len(frames_for_extraction)}."); return 1
 
-    actual_frames_read = len(frames_for_extraction)
-    logging.info(f"Прочитано {actual_frames_read} кадров для извлечения за {read_time:.2f} сек.")
-
-    if actual_frames_read < 2:
-        logging.error(f"Прочитано менее 2 кадров ({actual_frames_read}). Невозможно извлечь ЦВЗ.")
-        return 1
-    if actual_frames_read < num_frames_to_read:
-        logging.warning(f"Прочитано кадров ({actual_frames_read}) меньше, чем требовалось ({num_frames_to_read}).")
-
-    # --- Вызов основной функции извлечения со списком кадров ---
+    # --- Вызов extract_watermark_from_video (ПРЕДПОЛАГАЕТСЯ, ЧТО ОНА ВОЗВРАЩАЕТ Optional[bytes]) ---
     extracted_bytes = extract_watermark_from_video(
         frames=frames_for_extraction,
         nr=N_RINGS,
@@ -1365,12 +1737,15 @@ def main() -> int:
         dtcwt_fwd=dtcwt_fwd,
         plb=PAYLOAD_LEN_BYTES,
         mw=MAX_WORKERS_EXTRACT
+        # ngram_weight_param не передаем, так как старая extract_watermark_from_video его не ждет
     )
+    # ------------------------------------------------------------------------------------------
+    if frames_for_extraction: del frames_for_extraction; gc.collect()
 
-    # --- Вывод результатов ---
+    # --- Вывод результатов (ВАШ КОД, КОТОРЫЙ ОЖИДАЕТ Optional[bytes]) ---
     print(f"\n--- Extraction Results ---")
     extracted_hex: Optional[str] = None
-    if extracted_bytes:
+    if extracted_bytes:  # extracted_bytes это Optional[bytes]
         if len(extracted_bytes) == PAYLOAD_LEN_BYTES:
             extracted_hex = extracted_bytes.hex()
             print(f"  Payload Length OK.")
@@ -1384,6 +1759,7 @@ def main() -> int:
         logging.error("Extraction failed/No payload.")
 
     final_match_status = False
+    # original_id был загружен в начале функции main
     if original_id:
         print(f"  Original ID (Hex): {original_id}")
         if extracted_hex and extracted_hex == original_id:
@@ -1395,33 +1771,35 @@ def main() -> int:
             logging.warning("ID MISMATCH or Extraction Failed.")
     else:
         print("\n  Original ID unavailable for comparison.")
+    # ----------------------------------------------------
 
     logging.info("--- Extraction Main Process Finished ---")
     total_main_time = time.time() - main_start_time
     logging.info(f"--- Total Extractor Time: {total_main_time:.2f} sec ---")
-    print(f"\nExtraction finished. Log: {LOG_FILENAME}")
+    print(f"\nExtraction finished. Log: {LOG_FILENAME}")  # Глобальная LOG_FILENAME
+    return 0 if final_match_status else 1  # ИЗМЕНЕНО: 0 при успехе, 1 при ошибке/несовпадении
 
-    return 0 if extracted_bytes is not None else 1
 
-
+# --- Блок if __name__ == "__main__": (ВАШ КОД С МИНИМАЛЬНЫМИ ИЗМЕНЕНИЯМИ ДЛЯ ИНИЦИАЛИЗАЦИИ) ---
 if __name__ == "__main__":
-    # --- Настройка логирования ---
-    if not logging.getLogger().handlers:
-        for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
-        logging.basicConfig(filename=LOG_FILENAME, filemode='w', level=logging.INFO,
-                            format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s')
-    logging.getLogger().setLevel(logging.INFO)
+    # --- Настройка логирования (ВАШ КОД) ---
+    # LOG_FILENAME должна быть определена глобально
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(filename=LOG_FILENAME,
+                            filemode='w',
+                            level=logging.INFO,
+                            format='[%(asctime)s] %(levelname).1s %(threadName)s - %(funcName)s:%(lineno)d - %(message)s',
+                            datefmt='%Y-%m-%d %H:%M:%S')
+    logging.getLogger().setLevel(logging.INFO)  # Устанавливаем уровень здесь
 
-    # --- Проверка зависимостей ---
+    # --- Проверка зависимостей (ВАШ КОД, но с CV2_AVAILABLE) ---
     missing_libs_critical = []
-    if not globals().get('PYAV_AVAILABLE', False) and 'av' not in sys.modules: missing_libs_critical.append(
-        "PyAV (av)")  # Проверка, если флаг не определен
+    # Флаги PYAV_AVAILABLE, PYTORCH_WAVELETS_AVAILABLE, TORCH_DCT_AVAILABLE, CV2_AVAILABLE, GALOIS_IMPORTED
+    # должны быть установлены глобально в начале файла при попытках импорта.
+    if not globals().get('PYAV_AVAILABLE', False): missing_libs_critical.append("PyAV (av)")
     if not globals().get('PYTORCH_WAVELETS_AVAILABLE', False): missing_libs_critical.append("pytorch_wavelets")
     if not globals().get('TORCH_DCT_AVAILABLE', False): missing_libs_critical.append("torch-dct")
-    try:
-        import cv2
-    except ImportError:
-        missing_libs_critical.append("OpenCV (cv2)")
+    if not globals().get('CV2_AVAILABLE', False): missing_libs_critical.append("OpenCV (cv2)")  # Проверяем флаг
     try:
         import numpy
     except ImportError:
@@ -1430,6 +1808,7 @@ if __name__ == "__main__":
         import torch
     except ImportError:
         missing_libs_critical.append("PyTorch")
+    # Остальные стандартные импорты (shutil, subprocess, hashlib и т.д.) обычно всегда доступны
 
     if missing_libs_critical:
         error_msg = f"ОШИБКА: Отсутствуют КРИТИЧЕСКИ важные библиотеки: {', '.join(missing_libs_critical)}."
@@ -1437,50 +1816,100 @@ if __name__ == "__main__":
         logging.critical(error_msg);
         sys.exit(1)
 
-    if globals().get('USE_ECC', False) and not globals().get('GALOIS_AVAILABLE', False):
-        print("\nПРЕДУПРЕЖДЕНИЕ: ECC включен, но библиотека 'galois' не найдена/не работает.")
-        logging.warning("ECC включен, но Galois недоступен.")
+    # Предупреждение о Galois (ВАШ КОД)
+    if globals().get('USE_ECC', True) and not globals().get('GALOIS_AVAILABLE', False):  # GALOIS_AVAILABLE тоже флаг
+        print("\nПРЕДУПРЕЖДЕНИЕ: USE_ECC=True, но библиотека 'galois' не найдена/не работает.")
+        logging.warning("ECC включен, но Galois недоступен (проверено в __main__).")
 
-    # --- Профилирование ---
+    # --- Инициализация BCH_CODE_OBJECT (ВАШ КОД) ---
+    # BCH_M и BCH_T должны быть определены глобально
+    if USE_ECC and GALOIS_AVAILABLE and BCH_CODE_OBJECT is None:  # type: ignore
+        try:
+            _m_run = BCH_M  # type: ignore
+            _t_run = BCH_T  # type: ignore
+            _n_bch_run = (1 << _m_run) - 1
+            _d_bch_run = 2 * _t_run + 1
+            expected_k_run = -1
+            if _t_run == 5:
+                expected_k_run = 215
+            elif _t_run == 7:
+                expected_k_run = 201
+            elif _t_run == 9:
+                expected_k_run = 187
+            elif _t_run == 11:
+                expected_k_run = 173
+            elif _t_run == 15:
+                expected_k_run = 131
+
+            if expected_k_run != -1 and GALOIS_IMPORTED:  # type: ignore
+                BCHTypeRun = globals().get('BCH_TYPE')
+                if BCHTypeRun and BCHTypeRun.__name__ != 'BCHPlaceholder':  # Проверка, что это не заглушка
+                    temp_bch_run_obj = BCHTypeRun(_n_bch_run, d=_d_bch_run)
+                    if hasattr(temp_bch_run_obj, 'k') and hasattr(temp_bch_run_obj, 't') and \
+                            temp_bch_run_obj.k == expected_k_run and temp_bch_run_obj.t == _t_run:
+                        BCH_CODE_OBJECT = temp_bch_run_obj  # Присваиваем глобальной переменной
+                        logging.info(
+                            f"BCH_CODE_OBJECT инициализирован в __main__: n={BCH_CODE_OBJECT.n}, k={BCH_CODE_OBJECT.k}, t={BCH_CODE_OBJECT.t}")  # type: ignore
+                    else:
+                        logging.error(f"Ошибка инициализации BCH в __main__: параметры k/t не совпали.")
+            else:
+                logging.error(
+                    f"Не удалось инициализировать BCH_CODE_OBJECT в __main__ (expected_k или GALOIS_IMPORTED).")
+        except Exception as e_bch_init_main_block:
+            logging.error(f"Ошибка при инициализации BCH_CODE_OBJECT в __main__: {e_bch_init_main_block}",
+                          exc_info=True)
+            BCH_CODE_OBJECT = None
+
+            # --- Профилирование (ВАШ КОД) ---
     DO_PROFILING = False
     profiler_instance = None
     if DO_PROFILING:
-        if 'KERNPROF_VAR' not in os.environ and 'profile' not in globals() and 'cProfile' in sys.modules:  # Проверяем импорт cProfile
-            profiler_instance = cProfile.Profile();
-            profiler_instance.enable()
-            print("cProfile профилирование включено.")
-            logging.info("cProfile профилирование включено.")
-        elif 'profile' in globals() and callable(globals()['profile']):
-            print("line_profiler активен (через декоратор @profile). cProfile не будет запущен.")
-            logging.info("line_profiler активен. cProfile не запущен.")
+        if 'KERNPROF_VAR' not in os.environ and (
+                'profile' not in globals() or not callable(globals().get('profile'))) and 'cProfile' in sys.modules:
+            try:
+                import cProfile
+                import pstats
+
+                profiler_instance = cProfile.Profile()
+                profiler_instance.enable()
+                print("cProfile профилирование включено.")
+            except ImportError:
+                DO_PROFILING = False  # Не удалось импортировать
 
     final_exit_code = 1
     try:
         final_exit_code = main()
-    except FileNotFoundError as e_fnf_main:
-        print(f"\nОШИБКА: Файл не найден: {e_fnf_main}")
-        logging.critical(f"FileNotFoundError в __main__: {e_fnf_main}", exc_info=True)
-    except Exception as e_global_main:
-        print(f"\nКРИТИЧЕСКАЯ НЕОБРАБОТАННАЯ ОШИБКА: {e_global_main}")
-        logging.critical(f"Необработанная ошибка в __main__: {e_global_main}", exc_info=True)
+    except FileNotFoundError as e_fnf_main_run:
+        print(f"\nОШИБКА: Файл не найден: {e_fnf_main_run}")
+        logging.critical(f"FileNotFoundError в __main__: {e_fnf_main_run}", exc_info=True)
+    except torch.cuda.OutOfMemoryError as e_oom_main_run:  # type: ignore
+        print(f"\nОШИБКА: Недостаточно памяти CUDA: {e_oom_main_run}")
+        logging.critical(f"torch.cuda.OutOfMemoryError в __main__: {e_oom_main_run}", exc_info=True)
+        if torch.cuda.is_available(): torch.cuda.empty_cache()  # type: ignore
+    except Exception as e_global_main_run:
+        print(f"\nКРИТИЧЕСКАЯ НЕОБРАБОТАННАЯ ОШИБКА: {e_global_main_run}")
+        logging.critical(f"Необработанная ошибка в __main__: {e_global_main_run}", exc_info=True)
     finally:
         if DO_PROFILING and profiler_instance is not None:
             profiler_instance.disable()
             logging.info("cProfile профилирование выключено.")
-            stats_obj = pstats.Stats(profiler_instance).strip_dirs().sort_stats("cumulative")
-            print("\n--- Статистика Профилирования (cProfile, Top 30) ---");
-            stats_obj.print_stats(30)
-            profile_prof_file = f"profile_extract_main_t{BCH_T if 'BCH_T' in globals() else 'X'}.prof"
-            profile_txt_file = f"profile_extract_main_t{BCH_T if 'BCH_T' in globals() else 'X'}.txt"
             try:
-                stats_obj.dump_stats(profile_prof_file)
-                with open(profile_txt_file, 'w', encoding='utf-8') as f_pstats:
-                    ps = pstats.Stats(profiler_instance, stream=f_pstats).strip_dirs().sort_stats('cumulative');
-                    ps.print_stats()
-                print(f"Статистика профилирования сохранена: {profile_prof_file}, {profile_txt_file}")
-                logging.info(f"Статистика профилирования сохранена: {profile_prof_file}, {profile_txt_file}")
-            except Exception as e_pstats_save:
-                logging.error(f"Ошибка сохранения статистики: {e_pstats_save}")
+                import pstats
+
+                stats_obj_final_run = pstats.Stats(profiler_instance).strip_dirs().sort_stats("cumulative")
+                print("\n--- Статистика Профилирования (cProfile, Top 30) ---");
+                stats_obj_final_run.print_stats(30)
+                # Ваш код сохранения статистики
+                bch_t_prof_val = globals().get('BCH_T', 'X')
+                profile_prof_file_val = f"profile_extract_main_t{bch_t_prof_val}.prof"
+                profile_txt_file_val = f"profile_extract_main_t{bch_t_prof_val}.txt"
+                stats_obj_final_run.dump_stats(profile_prof_file_val)
+                with open(profile_txt_file_val, 'w', encoding='utf-8') as f_pstats_val:
+                    ps_val = pstats.Stats(profiler_instance, stream=f_pstats_val).strip_dirs().sort_stats('cumulative')
+                    ps_val.print_stats()
+                print(f"Статистика профилирования сохранена: {profile_prof_file_val}, {profile_txt_file_val}")
+            except Exception as e_pstats_save_val:
+                logging.error(f"Ошибка сохранения статистики профилирования: {e_pstats_save_val}")
 
         logging.info(f"Скрипт watermark_extractor.py завершен с кодом выхода {final_exit_code}.")
         print(f"\nСкрипт завершен с кодом выхода {final_exit_code}.")
